@@ -4,9 +4,9 @@ Tested on an Intel Mac, macOS 13.7.8, Node v24.19.0. Results are from this check
 
 ## Automated checks
 
-21 tests pass with the cached local model supplied. This covers separate CLI processes and unrelated working directories, eight concurrent writers, concurrent duplicate saves, preservation after source-file deletion, file-root restrictions, failed URL capture, readable text extraction, public destination filtering, rebuild/delete behavior, shared assets, export/import, traversal rejection, embedding-provider failure, type/date filters, config preservation/conflicts, real stdio MCP requests through the official SDK, and offline semantic retrieval across new processes.
+23 tests pass with the cached local model supplied. This covers separate CLI processes and unrelated working directories, eight concurrent writers, concurrent duplicate saves, preservation after source-file deletion, file-root restrictions, failed URL capture, readable text extraction, public destination filtering, rebuild/delete behavior, shared assets, export/import, traversal rejection, embedding-provider failure, type/date filters, config preservation/conflicts, real stdio MCP requests through the official SDK, and offline semantic retrieval across new processes.
 
-The default suite runs 20 tests and skips the real-model test unless `MEMLIO_MODEL_CACHE` points to already downloaded model files. The real-model child processes force offline mode. Do not set global `MEMLIO_OFFLINE=1` for the full suite: the private-network capture test deliberately exercises destination validation instead of the offline short circuit.
+The default suite runs 22 tests and skips the real-model test unless `MEMLIO_MODEL_CACHE` points to already downloaded model files. The real-model child processes force offline mode. Do not set global `MEMLIO_OFFLINE=1` for the full suite: the private-network capture test deliberately exercises destination validation instead of the offline short circuit.
 
 TypeScript compilation passes. No tests use a personal memory collection. A live `example.com` bookmark capture succeeded and preserved readable text after network access was available; earlier network failure retained the bookmark with an explicit error.
 
@@ -39,3 +39,7 @@ A separate npm bootstrap download was rejected by automatic approval review beca
 ## Memlio rename validation
 
 The repo, package, CLI, MCP server/tools, agent skills, and environment variables now use `memlio` / `MEMLIO_*`. The default collection is `~/.local/share/memlio`. There are no legacy aliases or migration paths. All 21 tests passed after the rename, including the real local-model test and fresh-server MCP integration. The seven issues recorded in the separate self-review remain outside this naming change.
+
+## Semantic search default
+
+New collections enable embeddings and hybrid search by default. The offline real-model regression now exercises plain `init` and default retrieval. Additional regressions cover saving without initialization, default hybrid retrieval, explicit keyword-only initialization with an empty offline model cache, preservation of that preference on later initialization/path changes, and failed attempts to re-enable embeddings without a cached model. General storage and MCP transport tests explicitly use keyword-only collections to avoid incidental model downloads. All 23 tests and TypeScript compilation pass.

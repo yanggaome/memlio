@@ -20,19 +20,20 @@ function output(value:any) {
   } else console.log(JSON.stringify(value,null,2));
 }
 async function withMemory<T>(fn:(memory:Memory)=>Promise<T>|T) {const memory=new Memory(home());try{output(await fn(memory));}finally{await memory.close();}}
-program.command('init').description('Initialize storage; optionally download and enable the local embedding model')
+program.command('init').description('Initialize storage and prepare local embeddings by default')
   .option('--semantic','Download/cache the local semantic model and enable it')
   .option('--keyword-only','Disable semantic search')
   .option('--allow-path <directory...>','Allow MCP capture from these directories')
   .action(async opts=>{
     const config=loadConfig(home());
     if(opts.semantic && opts.keywordOnly) throw new Error('Choose --semantic or --keyword-only.');
-    if(opts.semantic) {
+    if(opts.semantic) config.semantic=true;
+    if(opts.keywordOnly) config.semantic=false;
+    if(config.semantic) {
       console.error('Preparing local embeddings (first run downloads model files from Hugging Face).');
       const embedder=new LocalEmbedder(home());
-      try {await embedder.embed(['Initialize personal memory']);config.semantic=true;}finally{await embedder.dispose();}
+      try {await embedder.embed(['Initialize personal memory']);}finally{await embedder.dispose();}
     }
-    if(opts.keywordOnly) config.semantic=false;
     if(opts.allowPath) config.allowedPaths=[...new Set([...config.allowedPaths,...opts.allowPath.map((p:string)=>resolve(p))])];
     saveConfig(home(),config);
     await withMemory(m=>({...m.status(),next:config.semantic?'Run memlio reindex to index any previously saved items.':'Use memlio init --semantic to enable natural-language similarity search.'}));

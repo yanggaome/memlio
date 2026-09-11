@@ -7,7 +7,7 @@ import { z } from 'zod';
 export const MODEL = 'Xenova/all-MiniLM-L6-v2';
 const schema = z.object({
   version: z.literal(1),
-  semantic: z.boolean().default(false),
+  semantic: z.boolean().default(true),
   allowedPaths: z.array(z.string()).default([]),
 });
 export type Config = z.infer<typeof schema>;

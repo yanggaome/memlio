@@ -39,24 +39,24 @@ memlio store /absolute/path/to/dashboard.png \
   --description "Dark dashboard with orange charts and a left sidebar"
 printf '%s\n' 'A longer note from another command' | memlio store --stdin
 
-memlio retrieve "competitor pricing"                 # Keyword search initially
+memlio retrieve "competitor pricing"                 # Hybrid search by default
 memlio get <item-id>
 memlio status
 ```
 
 Absolute paths, `./paths`, and `../paths` are recognized as files. For a bare filename, use `--kind file`. Use `--kind note` for literal text resembling a URL or path. Exact repeated content with the same title/context is deduplicated; adding different context creates another record.
 
-Enable local natural-language similarity search:
+Local natural-language similarity search is enabled by default. `memlio init` downloads/prepares the quantized MiniLM model on first use. Saving without initialization also loads the model when embeddings are needed. To re-enable semantic search after opting out and cover previously saved items:
 
 ```sh
-memlio init --semantic       # Downloads a quantized MiniLM model on first use
+memlio init --semantic       # Re-enable after an explicit keyword-only opt-out
 memlio reindex               # Adds embeddings to previously saved content
 memlio retrieve "that idea for monitoring rival companies"
 memlio retrieve "orange charts" --kind file --limit 5
 memlio retrieve "queue project" --mode keyword
 ```
 
-With semantic search enabled, the default is hybrid keyword/vector search. Results are candidates with evidence, not guaranteed matches. The agent can inspect them and refine its query. Direct CLI retrieval also works without an agent or an API key.
+New collections use hybrid keyword/vector search by default. Use `memlio init --keyword-only` to opt out of embeddings and model downloads; later `init` calls preserve that explicit preference. Results are candidates with evidence, not guaranteed matches. The agent can inspect them and refine its query. Direct CLI retrieval also works without an agent or an API key.
 
 The downloaded model files total about 23 MB. Node dependencies add substantially more disk space. After the model is cached, `MEMLIO_OFFLINE=1 memlio retrieve "..."` works without network access. `MEMLIO_OFFLINE=1` also disables bookmark fetching. `MEMLIO_MODEL_CACHE` optionally selects a shared model cache.
 
@@ -106,7 +106,7 @@ Saving normally completes capture and indexing before returning, but preserves o
 memlio store https://example.com --defer
 memlio retry
 memlio export /path/to/new-backup-directory
-memlio --home /path/to/restored-collection init --semantic  # Optional: enable similarity search
+memlio --home /path/to/restored-collection init  # Prepare the default local embedding model
 memlio --home /path/to/restored-collection import /path/to/new-backup-directory
 memlio --home /path/to/restored-collection retry
 memlio delete <item-id> --yes
@@ -114,7 +114,7 @@ memlio delete <item-id> --yes
 
 Export includes original assets and JSON records, but not model files or derived embeddings. `reindex` rebuilds search tables from stored records; it cannot repair a lost primary database. Deleting an item does not erase older exports or perform forensic disk erasure.
 
-A fresh restored collection defaults to keyword-only search unless you enable semantic mode; `retry` does not enable it automatically.
+A fresh restored collection defaults to semantic mode; `retry` generates its missing embeddings. An existing explicit keyword-only preference is preserved until `init --semantic` re-enables it.
 
 No external embedding API is used. Website capture contacts the saved website; the first model setup contacts Hugging Face. Content retrieved through Codex or Claude enters that agent's context and follows its data handling settings. Saved pages are treated as untrusted data.
 

@@ -1,8 +1,8 @@
 # How Memlio stores and retrieves memories
 
-This document describes the current TypeScript prototype, checked against implementation commit `b364c5d`. It separates implemented behavior from planned work. For setup commands, see the [README](../README.md); for design rationale, see [architecture decisions](ARCHITECTURE.md).
+This document describes the current TypeScript prototype, updated for semantic search enabled by default. It separates implemented behavior from planned work. For setup commands, see the [README](../README.md); for design rationale, see [architecture decisions](ARCHITECTURE.md).
 
-**Saving always builds a keyword index. Semantic embeddings are optional.** The CLI and MCP server share one storage/search implementation. Codex or Claude adds reasoning around the tools; Memlio itself does not run a generative agent.
+**Saving always builds a keyword index. Semantic embeddings are enabled by default and can be explicitly disabled.** The CLI and MCP server share one storage/search implementation. Codex or Claude adds reasoning around the tools; Memlio itself does not run a generative agent.
 
 ## The pieces
 
@@ -106,12 +106,13 @@ Both keyword search and embeddings use this same prefixed text. An empty body st
 
 Keyword indexing is automatic: every prefixed chunk is inserted into SQLite FTS5, using the `porter unicode61` tokenizer with stemming.
 
-Semantic indexing is disabled by default. Enable it and cover existing items with:
+Semantic indexing is enabled by default for new collections. Prepare the model with:
 
 ```sh
-memlio init --semantic
-memlio reindex
+memlio init
 ```
+
+Saving without initialization also loads/downloads the model when needed. Use `memlio init --keyword-only` to explicitly disable embeddings and avoid model downloads. Plain `init` preserves an existing explicit preference. To re-enable embeddings after opting out, run `memlio init --semantic`, then `memlio reindex` to cover previously saved items.
 
 When enabled, Memlio embeds chunks locally using `Xenova/all-MiniLM-L6-v2` through Transformers.js and ONNX Runtime:
 
@@ -122,7 +123,7 @@ When enabled, Memlio embeds chunks locally using `Xenova/all-MiniLM-L6-v2` throu
 
 There is **no separate vector database or approximate-nearest-neighbor index**. The vectors are stored for later exhaustive comparison. Quantized model weights do not mean the saved vectors are 8-bit integers.
 
-`init --semantic` prepares the model and changes configuration; it does not retroactively embed the collection. A running MCP server must be restarted to read configuration changes, including semantic mode and allowed paths.
+`init` prepares the model when semantic mode is enabled; `init --semantic` also re-enables it after an opt-out. Neither command retroactively embeds the collection. A running MCP server must be restarted to read configuration changes, including semantic mode and allowed paths.
 
 ### Return the result
 
@@ -159,7 +160,7 @@ flowchart TD
 
 ### Choose the mode and filters
 
-The default mode is `keyword` when semantic search is disabled, and `hybrid` when enabled. Explicit `semantic` or `hybrid` requests fail if semantic search is disabled.
+New collections default to `hybrid`. The default mode becomes `keyword` when semantic search is explicitly disabled. Explicit `semantic` or `hybrid` requests fail if semantic search is disabled.
 
 Optional kind and date filters constrain eligible items. `--after` and `--before` are inclusive comparisons against the date the item was saved, not the page's publication date. The default result limit is five; CLI/core allow up to 50, while MCP allows up to 20.
 
@@ -261,12 +262,12 @@ Embedding inference is local and needs no external embedding API key. Website ca
 To restore into a fresh collection with semantic search:
 
 ```sh
-memlio --home /path/to/restored-collection init --semantic
+memlio --home /path/to/restored-collection init
 memlio --home /path/to/restored-collection import /path/to/backup
 memlio --home /path/to/restored-collection retry
 ```
 
-Importing into a fresh default collection and running `retry` alone leaves semantic search disabled. Restart an existing MCP server after changing its collection configuration.
+Importing into a fresh default collection and running `retry` generates embeddings, loading/downloading the model if necessary. An explicit keyword-only preference on the destination is preserved; `retry` does not override it. Restart an existing MCP server after changing its collection configuration.
 
 The prototype has no background daemon or job leases. Concurrent processes may repeat capture/inference. Review found that a late worker failure can overwrite a successful status, and `retry` may leave that stale status when all vectors already exist. Export/import also has unresolved edge cases for unusual asset extensions and size limits. These remain implementation issues, not guarantees supplied by this document.
 

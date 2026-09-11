@@ -16,6 +16,8 @@ The plan proposed a QMD experiment. For the first working loop, we instead imple
 
 The chosen quantized model files are about 23 MB; the development dependency tree is much larger (roughly 440 MB on this machine). A basic `Embedder` interface isolates the model provider. Replacing the whole retrieval engine still requires adapting the search implementation; it is not a completed general search-backend plugin system.
 
+New collections enable local embeddings and hybrid retrieval by default. Plain `init` prepares the model, while `init --keyword-only` explicitly opts out and persists that choice.
+
 FTS5 uses stemming and OR queries after basic stop-word filtering. Text is divided into overlapping chunks. Semantic retrieval compares normalized vectors by cosine similarity; hybrid retrieval combines per-item rankings using reciprocal rank fusion. The default similarity floor is 0.25, which is not calibrated as a probability or a reliable no-match detector. The small synthetic evaluation favored semantic-only top-one ranking over hybrid; broader representative evaluation should precede tuning defaults.
 
 ## Capture and recovery

@@ -8,6 +8,7 @@ import { setup } from '../dist/setup.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { Memory } from '../dist/store.js';
+import { saveConfig } from '../dist/config.js';
 function fixture(t){const root=mkdtempSync(join(tmpdir(),'memlio-integration-'));t.after(()=>rmSync(root,{recursive:true,force:true}));return root;}
 test('Codex setup preserves existing settings/comments and is idempotent',t=>{
   const root=fixture(t);mkdirSync(join(root,'.codex'));writeFileSync(join(root,'.codex','config.toml'),'# keep me\nmodel = "custom"\n[mcp_servers.other]\ncommand = "other"\n');
@@ -28,6 +29,7 @@ test('setup refuses to replace an unrelated existing memlio server',t=>{
 });
 test('real MCP SDK client stores, searches and reads across fresh servers',async t=>{
   const root=fixture(t),home=join(root,'collection');
+  saveConfig(home,{version:1,semantic:false,allowedPaths:[]});
   async function connect(){const client=new Client({name:'memlio-test',version:'1.0'});await client.connect(new StdioClientTransport({command:process.execPath,args:[resolve('dist/cli.js'),'--home',home,'mcp'],stderr:'pipe'}));return client;}
   const first=await connect();let id;
   try {

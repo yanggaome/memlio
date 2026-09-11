@@ -19,10 +19,11 @@ test('cached local model saves and retrieves a paraphrase across offline CLI pro
     assert.equal(result.status, 0, result.stderr);
     return JSON.parse(result.stdout);
   };
-  assert.equal(run('init', '--semantic').semantic, true);
+  assert.equal(run('init').semantic, true);
   const saved = run('store', 'Use a password manager to generate unique credentials and enable two-factor authentication.');
   assert.equal(saved.indexing, 'ready');
-  const retrieved = run('retrieve', 'secure my online accounts', '--mode', 'semantic');
+  const retrieved = run('retrieve', 'secure my online accounts');
+  assert.equal(retrieved.mode, 'hybrid');
   assert.equal(retrieved.results[0]?.id, saved.id);
   assert.ok(retrieved.results[0].similarity > 0.25);
 });

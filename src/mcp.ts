@@ -30,7 +30,7 @@ export async function serve(home: string) {
     return {id:saved.item.id,title:saved.item.title,duplicate:saved.duplicate,capture:saved.item.capture,captureError:saved.item.captureError,indexing:saved.item.indexing,indexError:saved.item.indexError};
   }));
   server.registerTool('memlio_search', {
-    description:'Find saved items by natural language. Returns bounded candidates and excerpts. Keyword mode works without a model; semantic/hybrid requires memlio init --semantic and indexed content.',
+    description:'Find saved items by natural language. Returns bounded candidates and excerpts. Hybrid search is the default for new collections; local embeddings require cached/downloadable model files and indexed content. Keyword mode works without a model. Use memlio init --semantic to re-enable embeddings if explicitly disabled.',
     inputSchema:{query:z.string().min(1).max(10_000),limit:z.number().int().min(1).max(20).optional(),mode:z.enum(['keyword','semantic','hybrid']).optional(),kind:z.enum(['note','url','file']).optional(),after:z.string().optional(),before:z.string().optional()},
     annotations:{readOnlyHint:true,openWorldHint:false},
   },guarded(args=>memory.search(args.query,args)));
