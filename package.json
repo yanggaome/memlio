@@ -1,5 +1,5 @@
 {
-  "name": "memlio",
+  "name": "@yanggao7/memlio",
   "version": "0.1.0",
   "description": "Personal memory for Claude Code and Codex: save bookmarks, notes, and files, find them later by description. Local SQLite, local embeddings, MCP server and CLI.",
   "license": "MIT",

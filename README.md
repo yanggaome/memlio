@@ -11,7 +11,7 @@ Everything stays on your machine: SQLite records, copies of saved files, a keywo
 Requires Node.js 22.13 or newer. See [docs/SETUP.md](docs/SETUP.md) if you need to install Node first.
 
 ```sh
-npm install -g memlio
+npm install -g @yanggao7/memlio
 memlio setup claude     # and/or: memlio setup codex
 ```
 
