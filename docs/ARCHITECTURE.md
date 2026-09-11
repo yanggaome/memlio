@@ -28,8 +28,8 @@ Images are stored as bytes; supplied descriptions are indexed. Automatic OCR, vi
 
 Setup stores absolute runtime, CLI, and collection paths in each client's user configuration. It preserves unrelated settings, backs up existing files, and refuses obvious name conflicts. Moving the installed tool requires running setup again. Alternate client config roots can be exercised with `--target-home`.
 
-MCP tools validate input, bound search results and content previews, and restrict file capture to configured or client-provided roots. `mem_get` provides pagination for long text. The bundled skills tell the agent to inspect evidence and treat saved content as data. Actual model behavior and native client invocation still need an interactive acceptance run.
+MCP tools validate input, bound search results and content previews, and restrict file capture to configured or client-provided roots. `memlio_get` provides pagination for long text. The bundled skills tell the agent to inspect evidence and treat saved content as data. Actual model behavior and native client invocation still need an interactive acceptance run.
 
 ## Release boundary
 
-The repository is a development prototype, with a temporary private package name. Before release: validate a fresh dependency install, exercise both real clients, add a supported-platform CI matrix, choose the public package/repository name and license, review dependency/model distribution terms, and evaluate a realistic corpus with hard distractors and no-match examples. Do not publish model weights or personal data in the software repository.
+The repository is a development prototype, with a private package named `memlio`. Before release: validate a fresh dependency install, exercise both real clients, add a supported-platform CI matrix, settle the original-code license, review dependency/model distribution terms, and evaluate a realistic corpus with hard distractors and no-match examples. Do not publish model weights or personal data in the software repository.

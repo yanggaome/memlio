@@ -1,4 +1,4 @@
-# mem: product and implementation plan
+# Memlio: product and implementation plan
 
 Draft date: September 10, 2026
 
@@ -12,7 +12,7 @@ Status: local prototype implemented. The proposal below preserves the original d
 | Durable core and CLI | Notes, URL text snapshots, copied files, retrieval, retries, deletion, reindex, export/import implemented. Restart and concurrent-write tests pass. |
 | Cross-agent integration | MCP server, user-scope setup, and both skills implemented. Fresh-server SDK integration tested; real Codex/Claude interactive acceptance is pending. |
 | Capture quality | Descriptions support image recall; automatic OCR/vision, PDF text extraction, and browser-assisted capture remain pending. |
-| Public release | Source and local package ready for review. Fresh install, platform CI, public naming/license, and GitHub/npm publication remain pending. |
+| Public release | Source and local package ready for review. Name selected: `memlio`. Fresh install, platform CI, license, and GitHub/npm publication remain pending. |
 
 See [README.md](README.md) for implemented commands and [validation results](docs/VALIDATION.md) for measured results and limitations. The synthetic recall result does not establish the broader real-world acceptance target below.
 
@@ -30,23 +30,23 @@ The intended interface is illustrated below. Consult README for the current exac
 
 ```text
 # Claude Code skill
-/mem store https://example.com/article -- useful for my queue project
-/mem store Idea: compare pricing pages using weekly screenshots
-/mem store /absolute/path/to/dashboard.png
-/mem retrieve that article about making background jobs reliable
+/memlio store https://example.com/article -- useful for my queue project
+/memlio store Idea: compare pricing pages using weekly screenshots
+/memlio store /absolute/path/to/dashboard.png
+/memlio retrieve that article about making background jobs reliable
 
 # Codex skill
-$mem store ...
-$mem retrieve ...
+$memlio store ...
+$memlio retrieve ...
 
 # Direct shell interface
-mem store "A thought I want to remember"
-mem store https://example.com/article --note "For the queue project"
-mem store /absolute/path/to/dashboard.png --note "Design inspiration"
-mem retrieve "the dark dashboard with orange charts"
-mem get <id>
-mem status
-mem export <destination>
+memlio store "A thought I want to remember"
+memlio store https://example.com/article --note "For the queue project"
+memlio store /absolute/path/to/dashboard.png --note "Design inspiration"
+memlio retrieve "the dark dashboard with orange charts"
+memlio get <id>
+memlio status
+memlio export <destination>
 ```
 
 The CLI has deterministic input parsing and machine-readable output. The agent skills interpret conversational requests and translate them into tool calls. A slash command is an agent interface, not a shell command.
@@ -79,9 +79,9 @@ QMD currently identifies its repository license as MIT; Karakeep and Basic Memor
 
 ```mermaid
 flowchart TD
-    A[Codex or Claude Code] --> B[mem skill]
-    B --> C[mem MCP server]
-    D[Terminal mem CLI] --> E[Shared mem core]
+    A[Codex or Claude Code] --> B[memlio skill]
+    B --> C[memlio MCP server]
+    D[Terminal memlio CLI] --> E[Shared memlio core]
     C --> E
     E --> F[Canonical records and original assets]
     E --> G[Extraction and indexing jobs]
@@ -116,11 +116,11 @@ Use atomic file writes and transactional metadata updates. Serialize index-writi
 
 | Tool | Responsibility |
 | --- | --- |
-| `mem_store` | Save text, a URL, or a permitted local file with optional context; return ID and status. |
-| `mem_search` | Search the shared collection with natural-language text and optional filters; return bounded candidates and excerpts. |
-| `mem_get` | Retrieve one original record or bounded content by ID. |
-| `mem_status` | Report pending/failed extraction and indexing work. |
-| `mem_delete` | Remove an explicitly identified item and associated derived data. |
+| `memlio_store` | Save text, a URL, or a permitted local file with optional context; return ID and status. |
+| `memlio_search` | Search the shared collection with natural-language text and optional filters; return bounded candidates and excerpts. |
+| `memlio_get` | Retrieve one original record or bounded content by ID. |
+| `memlio_status` | Report pending/failed extraction and indexing work. |
+| `memlio_delete` | Remove an explicitly identified item and associated derived data. |
 
 Keep bulk import, export, repair, and reindex operations in the CLI initially. Supply read-only/destructive MCP annotations as appropriate, while enforcing actual access rules in the application.
 
@@ -192,7 +192,7 @@ Exit criterion: no lost originals in restart/concurrency tests, reliable source 
 
 ### Milestone 5: public release
 
-Choose a package/repository name after checking availability. Pin tested dependencies, settle the original-code license, document provider/model requirements, add CI and release packaging, and provide an executable quickstart with sample data.
+Use `memlio` for the repository, package, CLI, MCP server, and skills; recheck package availability at publication. Pin tested dependencies, settle the original-code license, document provider/model requirements, add CI and release packaging, and provide an executable quickstart with sample data.
 
 Exit criterion: a fresh user can install and complete the cross-agent workflow without editing source code. Publish measured limitations and supported operating systems.
 
@@ -223,7 +223,7 @@ Decisions to resolve during implementation:
 1. Does QMD meet installation and resource targets, or should the search adapter use a smaller implementation?
 2. What local OCR/vision path works well on the target Mac, and which optional provider integrations are worthwhile?
 3. Which attachment mechanisms are available in the tested versions of each agent?
-4. What public package/repository name is available?
+4. Repository, package, and command name selected: `memlio`. The package remains private until release.
 5. Is MIT the desired license for the original implementation?
 
 The first useful deliverable is a working, durable, cross-agent capture-and-recall loop. Expand only after testing it on things the user actually struggles to remember.

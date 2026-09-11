@@ -1,12 +1,22 @@
 {
-  "name": "mem-local-prototype",
+  "name": "memlio",
   "version": "0.1.0",
   "private": true,
   "description": "Local personal memory for your terminal, Codex, and Claude Code",
   "type": "module",
-  "bin": { "mem": "dist/cli.js" },
-  "files": ["dist", "skills", "README.md", "PLAN.md", "docs"],
-  "engines": { "node": ">=22.13.0" },
+  "bin": {
+    "memlio": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "skills",
+    "README.md",
+    "PLAN.md",
+    "docs"
+  ],
+  "engines": {
+    "node": ">=22.13.0"
+  },
   "scripts": {
     "build": "tsc",
     "check": "tsc --noEmit",

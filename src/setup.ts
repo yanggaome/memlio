@@ -5,21 +5,21 @@ import { fileURLToPath } from 'node:url';
 import TOML from '@iarna/toml';
 import { atomicWrite } from './config.js';
 
-const start = '# BEGIN mem managed server';
-const end = '# END mem managed server';
+const start = '# BEGIN memlio managed server';
+const end = '# END memlio managed server';
 export function setup(client: string, home: string, options: { targetHome?: string; dryRun?: boolean } = {}) {
   if (!['codex','claude'].includes(client)) throw new Error('Choose codex or claude.');
   const userHome = resolve(options.targetHome ?? homedir());
   const cli = fileURLToPath(new URL('./cli.js', import.meta.url));
   const server = { command: process.execPath, args: [cli, '--home', home, 'mcp'] };
   const configPath = client === 'codex' ? join(userHome,'.codex','config.toml') : join(userHome,'.claude.json');
-  const skillPath = join(userHome,client === 'codex' ? '.agents' : '.claude','skills','mem','SKILL.md');
+  const skillPath = join(userHome,client === 'codex' ? '.agents' : '.claude','skills','memlio','SKILL.md');
   const original = existsSync(configPath) ? readFileSync(configPath,'utf8') : '';
   let config: string;
   if (client === 'codex') {
     const parsed = TOML.parse(original) as any;
-    if (parsed.mcp_servers?.mem && !original.includes(start)) throw new Error('An unmanaged Codex MCP server named mem already exists. Rename it before setup.');
-    const block = `${start}\n[mcp_servers.mem]\ncommand = ${JSON.stringify(server.command)}\nargs = ${JSON.stringify(server.args)}\n${end}`;
+    if (parsed.mcp_servers?.memlio && !original.includes(start)) throw new Error('An unmanaged Codex MCP server named memlio already exists. Rename it before setup.');
+    const block = `${start}\n[mcp_servers.memlio]\ncommand = ${JSON.stringify(server.command)}\nargs = ${JSON.stringify(server.args)}\n${end}`;
     if (original.includes(start)) {
       const begin = original.indexOf(start), finish = original.indexOf(end,begin);
       if (finish < 0) throw new Error('Incomplete managed configuration block; repair it before setup.');
@@ -28,17 +28,17 @@ export function setup(client: string, home: string, options: { targetHome?: stri
     TOML.parse(config);
   } else {
     const parsed = original ? JSON.parse(original) : {};
-    if (parsed.mcpServers?.mem && !parsed.mcpServers.mem.args?.some((a: string) => a === cli)) throw new Error('An existing Claude MCP server named mem has different configuration. Rename it before setup.');
+    if (parsed.mcpServers?.memlio && !parsed.mcpServers.memlio.args?.some((a: string) => a === cli)) throw new Error('An existing Claude MCP server named memlio has different configuration. Rename it before setup.');
     parsed.mcpServers ??= {};
-    parsed.mcpServers.mem = { type:'stdio', ...server };
+    parsed.mcpServers.memlio = { type:'stdio', ...server };
     config = JSON.stringify(parsed,null,2) + '\n';
   }
-  const skill = readFileSync(fileURLToPath(new URL(`../skills/${client}/mem/SKILL.md`, import.meta.url)),'utf8');
-  if (existsSync(skillPath) && !readFileSync(skillPath,'utf8').includes('<!-- mem-local managed skill -->')) throw new Error(`An unmanaged skill exists at ${skillPath}.`);
+  const skill = readFileSync(fileURLToPath(new URL(`../skills/${client}/memlio/SKILL.md`, import.meta.url)),'utf8');
+  if (existsSync(skillPath) && !readFileSync(skillPath,'utf8').includes('<!-- memlio-local managed skill -->')) throw new Error(`An unmanaged skill exists at ${skillPath}.`);
   if (!options.dryRun) {
     mkdirSync(dirname(configPath),{recursive:true,mode:0o700});
     mkdirSync(dirname(skillPath),{recursive:true,mode:0o700});
-    if (original) copyFileSync(configPath,`${configPath}.mem-backup-${Date.now()}`);
+    if (original) copyFileSync(configPath,`${configPath}.memlio-backup-${Date.now()}`);
     atomicWrite(configPath,config);
     atomicWrite(skillPath,skill);
   }

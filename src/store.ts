@@ -90,7 +90,7 @@ export class Memory {
     if (kind === 'file') {
       original = realpathSync(resolve(input.input));
       const roots = [...this.config.allowedPaths, ...(fileAccess.roots ?? [])].filter(existsSync).map(p => realpathSync(p));
-      if (!fileAccess.explicit && !roots.some(root => within(original, root))) throw new Error('File is outside allowed roots. Run mem init --allow-path <folder> or provide an MCP client filesystem root.');
+      if (!fileAccess.explicit && !roots.some(root => within(original, root))) throw new Error('File is outside allowed roots. Run memlio init --allow-path <folder> or provide an MCP client filesystem root.');
       const stat = statSync(original);
       if (!stat.isFile() || stat.size > 20 * 1024 * 1024) throw new Error('Capture requires a regular file no larger than 20 MB.');
       bytes = readFileSync(original);
@@ -166,7 +166,7 @@ export class Memory {
     if (!Number.isInteger(limit) || limit < 1 || limit > 50) throw new Error('Limit must be an integer from 1 to 50.');
     for (const date of [options.after, options.before]) if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('Dates must use YYYY-MM-DD.');
     const mode = options.mode ?? (this.config.semantic ? 'hybrid' : 'keyword');
-    if (mode !== 'keyword' && !this.config.semantic) throw new Error('Semantic search is disabled. Enable it with mem init --semantic, then run mem reindex.');
+    if (mode !== 'keyword' && !this.config.semantic) throw new Error('Semantic search is disabled. Enable it with memlio init --semantic, then run memlio reindex.');
     const eligible = new Map(this.list().filter(i => (!options.kind || i.kind === options.kind) && (!options.after || i.created.slice(0,10) >= options.after) && (!options.before || i.created.slice(0,10) <= options.before)).map(i => [i.id,i]));
     const candidates = new Map<string, { id: string; score: number; excerpt: string; keyword: boolean; similarity: number | null }>();
     const add = (id:string, score:number, excerpt:string, keyword:boolean, similarity:number|null) => {
@@ -187,7 +187,7 @@ export class Memory {
     if (mode !== 'keyword') {
       const indexed = this.db.prepare('SELECT item_id,text,vector FROM chunks WHERE vector IS NOT NULL AND model=?').all(this.embedder.name) as {item_id:string;text:string;vector:string}[];
       const pending = this.db.prepare('SELECT count(*) AS n FROM chunks WHERE vector IS NULL OR model!=?').get(this.embedder.name) as {n:number};
-      if (pending.n) warnings.push(`${pending.n} chunks lack current semantic embeddings; run mem retry or mem reindex.`);
+      if (pending.n) warnings.push(`${pending.n} chunks lack current semantic embeddings; run memlio retry or memlio reindex.`);
       if (indexed.length) {
         const [vector] = await this.embedder.embed([query]);
         const rows = indexed.filter(r => eligible.has(r.item_id)).map(r => ({...r, similarity: cosine(vector, JSON.parse(r.vector))})).filter(r => r.similarity >= (options.minSimilarity ?? 0.25)).sort((a,b) => b.similarity-a.similarity);
@@ -271,7 +271,7 @@ export class Memory {
         this.db.prepare('INSERT INTO items VALUES(?,?,?)').run(item.id,item.hash,JSON.stringify(item));
         this.buildChunks(item);imported++;
       }
-      return {imported,duplicates,next:this.config.semantic?'Run mem retry to generate embeddings.':null};
+      return {imported,duplicates,next:this.config.semantic?'Run memlio retry to generate embeddings.':null};
     });
   }
   async close() { this.db.close(); await this.embedder.dispose(); }

@@ -15,12 +15,12 @@ export class LocalEmbedder implements Embedder {
     if (!texts.length) return [];
     if (!this.extractor && !this.loading) this.loading = (async () => {
       const { pipeline, env } = await import('@huggingface/transformers');
-      env.cacheDir = process.env.MEM_MODEL_CACHE ?? join(this.home, 'models');
+      env.cacheDir = process.env.MEMLIO_MODEL_CACHE ?? join(this.home, 'models');
       env.localModelPath = env.cacheDir;
       env.allowLocalModels = true;
-      env.allowRemoteModels = process.env.MEM_OFFLINE !== '1';
+      env.allowRemoteModels = process.env.MEMLIO_OFFLINE !== '1';
       env.backends.onnx.logLevel = 'error';
-      this.extractor = await pipeline('feature-extraction', MODEL, { dtype: 'q8', device: 'cpu', local_files_only: process.env.MEM_OFFLINE === '1' });
+      this.extractor = await pipeline('feature-extraction', MODEL, { dtype: 'q8', device: 'cpu', local_files_only: process.env.MEMLIO_OFFLINE === '1' });
     })().finally(() => { this.loading = undefined; });
     await this.loading;
     const vectors: number[][] = [];

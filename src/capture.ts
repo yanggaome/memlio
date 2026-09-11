@@ -26,7 +26,7 @@ export async function publicTarget(raw: string) {
 
 // DNS is resolved and checked once per hop, then pinned to the actual connection.
 export async function fetchPage(raw: string, redirects = 0, deadline = Date.now() + 20_000): Promise<{ url: string; body: string; contentType: string }> {
-  if (process.env.MEM_OFFLINE === '1') throw new Error('Page capture is disabled by MEM_OFFLINE=1.');
+  if (process.env.MEMLIO_OFFLINE === '1') throw new Error('Page capture is disabled by MEMLIO_OFFLINE=1.');
   if (redirects > 5) throw new Error('Too many redirects.');
   const remaining = deadline - Date.now();
   if (remaining <= 0) throw new Error('Page capture timed out.');
@@ -39,7 +39,7 @@ export async function fetchPage(raw: string, redirects = 0, deadline = Date.now(
   const response = await new Promise<{ status: number; location?: string; body: string; contentType: string }>((resolve, reject) => {
     const transport = url.protocol === 'https:' ? https : http;
     const req = transport.get(url, {
-      headers: { 'User-Agent': 'mem-local/0.1 (personal bookmark capture)', 'Accept': 'text/html,text/plain,application/xhtml+xml', 'Accept-Encoding': 'identity' },
+      headers: { 'User-Agent': 'memlio/0.1 (personal bookmark capture)', 'Accept': 'text/html,text/plain,application/xhtml+xml', 'Accept-Encoding': 'identity' },
       lookup: ((_host: unknown, opts: {all?:boolean}, callback: Function) => opts.all ? callback(null,[address]) : callback(null, address.address, address.family)) as any,
     }, res => {
       const status = res.statusCode ?? 500;

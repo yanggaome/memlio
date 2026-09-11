@@ -1,4 +1,4 @@
-# mem
+# Memlio
 
 Save a bookmark, note, or picture now. Find it later by describing what you remember.
 
@@ -9,7 +9,7 @@ Save a bookmark, note, or picture now. Find it later by describing what you reme
 Requires Node.js 22.13+; development and native dependencies have been tested on an Intel Mac with Node 24.19. Use Node 24+ with pnpm 11.19.0 for the reproducible development setup:
 
 ```sh
-cd /path/to/mem
+cd /path/to/memlio
 pnpm install --frozen-lockfile
 pnpm build
 node dist/cli.js init
@@ -19,27 +19,27 @@ node dist/cli.js retrieve "idea"
 
 If you already have Node and npm, install pnpm with `npm install --global pnpm@11.19.0`. In iTerm2, the shell's PATH must include your Node installation; installing the Codex desktop app alone does not provide these commands on PATH.
 
-To use `mem` from any directory, link this checkout:
+To use `memlio` from any directory, link this checkout:
 
 ```sh
 pnpm link --global
-mem doctor
+memlio doctor
 ```
 
-The direct `node /absolute/path/to/mem/dist/cli.js` form also works. Keep the checkout in place after linking or registering clients. There is no public `npm install -g mem` release yet; `mem-local-prototype` is a temporary private package name.
+The direct `node /absolute/path/to/memlio/dist/cli.js` form also works. Keep the checkout in place after linking or registering clients. The package is named `memlio` and remains private until release; there is no public `npm install -g memlio` release yet.
 
 ## Save and recall
 
 ```sh
-mem store "Try weekly screenshots of competitor pricing"
-mem store https://example.com/article --note "For my queue project"
-mem store /absolute/path/to/dashboard.png \
+memlio store "Try weekly screenshots of competitor pricing"
+memlio store https://example.com/article --note "For my queue project"
+memlio store /absolute/path/to/dashboard.png \
   --description "Dark dashboard with orange charts and a left sidebar"
-printf '%s\n' 'A longer note from another command' | mem store --stdin
+printf '%s\n' 'A longer note from another command' | memlio store --stdin
 
-mem retrieve "competitor pricing"                 # Keyword search initially
-mem get <item-id>
-mem status
+memlio retrieve "competitor pricing"                 # Keyword search initially
+memlio get <item-id>
+memlio status
 ```
 
 Absolute paths, `./paths`, and `../paths` are recognized as files. For a bare filename, use `--kind file`. Use `--kind note` for literal text resembling a URL or path. Exact repeated content with the same title/context is deduplicated; adding different context creates another record.
@@ -47,41 +47,41 @@ Absolute paths, `./paths`, and `../paths` are recognized as files. For a bare fi
 Enable local natural-language similarity search:
 
 ```sh
-mem init --semantic       # Downloads a quantized MiniLM model on first use
-mem reindex               # Adds embeddings to previously saved content
-mem retrieve "that idea for monitoring rival companies"
-mem retrieve "orange charts" --kind file --limit 5
-mem retrieve "queue project" --mode keyword
+memlio init --semantic       # Downloads a quantized MiniLM model on first use
+memlio reindex               # Adds embeddings to previously saved content
+memlio retrieve "that idea for monitoring rival companies"
+memlio retrieve "orange charts" --kind file --limit 5
+memlio retrieve "queue project" --mode keyword
 ```
 
 With semantic search enabled, the default is hybrid keyword/vector search. Results are candidates with evidence, not guaranteed matches. The agent can inspect them and refine its query. Direct CLI retrieval also works without an agent or an API key.
 
-The downloaded model files total about 23 MB. Node dependencies add substantially more disk space. After the model is cached, `MEM_OFFLINE=1 mem retrieve "..."` works without network access. `MEM_OFFLINE=1` also disables bookmark fetching. `MEM_MODEL_CACHE` optionally selects a shared model cache.
+The downloaded model files total about 23 MB. Node dependencies add substantially more disk space. After the model is cached, `MEMLIO_OFFLINE=1 memlio retrieve "..."` works without network access. `MEMLIO_OFFLINE=1` also disables bookmark fetching. `MEMLIO_MODEL_CACHE` optionally selects a shared model cache.
 
 ## Connect Codex and Claude Code
 
 ```sh
-mem setup codex --dry-run
-mem setup codex
-mem setup claude
+memlio setup codex --dry-run
+memlio setup codex
+memlio setup claude
 ```
 
 Setup registers an MCP server and installs the bundled personal skill, preserving unrelated client settings and backing up existing configuration files. Restart each client afterward.
 
 ```text
 # Codex
-$mem store A useful thought for later
-$mem retrieve that thought about background jobs
+$memlio store A useful thought for later
+$memlio retrieve that thought about background jobs
 
 # Claude Code
-/mem store https://example.com/article
-/mem retrieve that article about background jobs
+/memlio store https://example.com/article
+/memlio retrieve that article about background jobs
 ```
 
 Both registrations use the same absolute collection path and Node executable. File capture through MCP requires a client-provided filesystem root or an explicitly allowed folder:
 
 ```sh
-mem init --allow-path /absolute/path/to/screenshots
+memlio init --allow-path /absolute/path/to/screenshots
 ```
 
 Direct CLI file arguments authorize reading that selected file. Pasted agent attachments still need an accessible file path for their original bytes to be preserved. Automatic OCR and image understanding are not implemented; descriptions supplied by you or an agent make pictures searchable.
@@ -94,17 +94,17 @@ MCP transport and fresh-session persistence have been tested with the official S
 - **Bookmarks:** original URL, context, and an attempted readable Markdown snapshot with capture time and final URL. This is a text snapshot, not raw HTML, a screenshot, or a complete site archive. Login-only and JavaScript-only pages may fail; the bookmark remains saved with an error.
 - **Files:** a copy of the original bytes, independent of the source path. Text extraction currently covers `.txt`, `.md`, `.csv`, and `.json`. Images and other binaries rely on supplied descriptions; PDF text extraction is not implemented.
 
-Storage defaults to `~/.local/share/mem`. Override it with `MEM_HOME` or `mem --home /path/to/collection ...`. SQLite contains the authoritative records and rebuildable search tables; copied assets live alongside it. Keep the collection outside your source repository.
+Storage defaults to `~/.local/share/memlio`. Override it with `MEMLIO_HOME` or `memlio --home /path/to/collection ...`. SQLite contains the authoritative records and rebuildable search tables; copied assets live alongside it. Keep the collection outside your source repository.
 
-Saving normally completes capture and indexing before returning, but preserves originals first. Use `--defer` for an immediate save and run `mem retry` later. There is no background daemon yet. Fetching and local inference are independent of an active agent session.
+Saving normally completes capture and indexing before returning, but preserves originals first. Use `--defer` for an immediate save and run `memlio retry` later. There is no background daemon yet. Fetching and local inference are independent of an active agent session.
 
 ```sh
-mem store https://example.com --defer
-mem retry
-mem export /path/to/new-backup-directory
-mem --home /path/to/restored-collection import /path/to/new-backup-directory
-mem --home /path/to/restored-collection retry
-mem delete <item-id> --yes
+memlio store https://example.com --defer
+memlio retry
+memlio export /path/to/new-backup-directory
+memlio --home /path/to/restored-collection import /path/to/new-backup-directory
+memlio --home /path/to/restored-collection retry
+memlio delete <item-id> --yes
 ```
 
 Export includes original assets and JSON records, but not model files or derived embeddings. `reindex` rebuilds search tables from stored records; it cannot repair a lost primary database. Deleting an item does not erase older exports or perform forensic disk erasure.
@@ -116,11 +116,11 @@ No external embedding API is used. Website capture contacts the saved website; t
 ```sh
 pnpm test
 pnpm check
-MEM_MODEL_CACHE=/path/to/downloaded/models pnpm test
-MEM_MODEL_CACHE=/path/to/downloaded/models MEM_OFFLINE=1 pnpm eval
+MEMLIO_MODEL_CACHE=/path/to/downloaded/models pnpm test
+MEMLIO_MODEL_CACHE=/path/to/downloaded/models MEMLIO_OFFLINE=1 pnpm eval
 pnpm pack
 ```
 
-The real-model regression test skips unless `MEM_MODEL_CACHE` is set; the other tests do not download models. The evaluation is synthetic, with no private collection data. See [validation results](docs/VALIDATION.md), [architecture decisions](docs/ARCHITECTURE.md), and the [original plan and milestone status](PLAN.md).
+The real-model regression test skips unless `MEMLIO_MODEL_CACHE` is set; the other tests do not download models. The evaluation is synthetic, with no private collection data. See [validation results](docs/VALIDATION.md), [architecture decisions](docs/ARCHITECTURE.md), and the [original plan and milestone status](PLAN.md).
 
-Current scope is a single user's Mac. Semantic search scans vectors in memory and is intended for small collections; large-library performance, multilingual quality, OCR, browser-assisted snapshots, device sync, fresh-install testing, Linux support, and a public package/license decision remain release work. pnpm dependency build scripts are disabled for the tested Mac prebuilt binaries; other platforms may need different installation handling.
+Current scope is a single user's Mac. Semantic search scans vectors in memory and is intended for small collections; large-library performance, multilingual quality, OCR, browser-assisted snapshots, device sync, fresh-install testing, Linux support, and the original-code license decision remain release work. pnpm dependency build scripts are disabled for the tested Mac prebuilt binaries; other platforms may need different installation handling.

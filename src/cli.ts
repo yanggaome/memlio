@@ -7,8 +7,8 @@ import { LocalEmbedder } from './embedding.js';
 import { setup } from './setup.js';
 import { serve } from './mcp.js';
 
-const program = new Command().name('mem').version('0.1.0').description('Save something now. Find it later from a vague description.')
-  .option('--home <directory>','Collection directory (also MEM_HOME)')
+const program = new Command().name('memlio').version('0.1.0').description('Save something now. Find it later from a vague description.')
+  .option('--home <directory>','Collection directory (also MEMLIO_HOME)')
   .option('--json','Machine-readable JSON output');
 const home=()=>dataHome(program.opts().home);
 function output(value:any) {
@@ -35,14 +35,14 @@ program.command('init').description('Initialize storage; optionally download and
     if(opts.keywordOnly) config.semantic=false;
     if(opts.allowPath) config.allowedPaths=[...new Set([...config.allowedPaths,...opts.allowPath.map((p:string)=>resolve(p))])];
     saveConfig(home(),config);
-    await withMemory(m=>({...m.status(),next:config.semantic?'Run mem reindex to index any previously saved items.':'Use mem init --semantic to enable natural-language similarity search.'}));
+    await withMemory(m=>({...m.status(),next:config.semantic?'Run memlio reindex to index any previously saved items.':'Use memlio init --semantic to enable natural-language similarity search.'}));
   });
 program.command('store').description('Preserve a note, URL, or file and index its content')
   .argument('[input...]','Text, URL, or local file path')
   .option('--stdin','Read a note from standard input')
   .addOption(new Option('--kind <kind>').choices(['note','url','file']))
   .option('--title <title>').option('--note <context>','Why you saved it').option('--description <text>','A description of an image or asset')
-  .option('--defer','Save now; run mem retry later to capture/index')
+  .option('--defer','Save now; run memlio retry later to capture/index')
   .action(async (parts,opts)=>{
     let input=parts.join(' ');
     if(opts.stdin){if(input)throw new Error('Use an argument or --stdin, not both.');const chunks:Buffer[]=[];let bytes=0;for await(const chunk of process.stdin){bytes+=chunk.length;if(bytes>1_000_000)throw new Error('Stdin exceeds 1 MB.');chunks.push(Buffer.from(chunk));}input=Buffer.concat(chunks).toString('utf8');}
@@ -60,8 +60,8 @@ program.command('retry').description('Retry pending/failed capture and embedding
 program.command('reindex').description('Rebuild search data from stored records').action(async()=>withMemory(m=>m.reindex()));
 program.command('delete').argument('<id>').requiredOption('--yes','Confirm permanent deletion').action(async id=>withMemory(m=>m.delete(id)));
 program.command('export').argument('<directory>').description('Export portable records and original assets to a new directory').action(async target=>withMemory(m=>m.export(target)));
-program.command('import').argument('<directory>').description('Restore records and assets from a mem export').action(async source=>withMemory(m=>m.import(source)));
+program.command('import').argument('<directory>').description('Restore records and assets from a memlio export').action(async source=>withMemory(m=>m.import(source)));
 program.command('setup').argument('<client>','codex or claude').option('--dry-run','Preview paths and registration without changes').option('--target-home <directory>','Alternative user configuration root').action((client,opts)=>output(setup(client,home(),opts)));
 program.command('mcp').description('Run the MCP server over stdio').action(async()=>serve(home()));
 program.command('doctor').description('Check runtime and collection configuration').action(async()=>withMemory(m=>({node:process.version,executable:process.execPath,...m.status()})));
-program.parseAsync().catch(error=>{console.error(`mem: ${error instanceof Error?error.message:String(error)}`);process.exitCode=1;});
+program.parseAsync().catch(error=>{console.error(`memlio: ${error instanceof Error?error.message:String(error)}`);process.exitCode=1;});

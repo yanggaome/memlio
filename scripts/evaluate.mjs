@@ -38,7 +38,7 @@ const cases=[
   ['Workshop whiteboard','Image description: arrows connect a browser, an API gateway, a job queue and several background workers.','photo of the architecture drawing with a queue'],
   ['Kitchen inspiration','Image description: blue open shelves above a white tiled backsplash, with brass hooks for mugs.','the kitchen with blue shelving'],
 ];
-const home=mkdtempSync(join(tmpdir(),'mem-eval-'));
+const home=mkdtempSync(join(tmpdir(),'memlio-eval-'));
 saveConfig(home,{version:1,semantic:true,allowedPaths:[]});
 const memory=new Memory(home),expected=[];
 const started=performance.now();
@@ -62,5 +62,5 @@ try {
   }
   report.noMatchProbes=absent;
   const json=JSON.stringify(report,null,2);console.log(json);
-  if(process.env.MEM_EVAL_OUTPUT)writeFileSync(process.env.MEM_EVAL_OUTPUT,json+'\n');
+  if(process.env.MEMLIO_EVAL_OUTPUT)writeFileSync(process.env.MEMLIO_EVAL_OUTPUT,json+'\n');
 }finally{await memory.close();rmSync(home,{recursive:true,force:true});}

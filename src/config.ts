@@ -12,7 +12,7 @@ const schema = z.object({
 });
 export type Config = z.infer<typeof schema>;
 export function dataHome(path?: string): string {
-  return resolve(path ?? process.env.MEM_HOME ?? join(homedir(), '.local', 'share', 'mem'));
+  return resolve(path ?? process.env.MEMLIO_HOME ?? join(homedir(), '.local', 'share', 'memlio'));
 }
 export function atomicWrite(path: string, data: string | Buffer): void {
   const temp = `${path}.${randomUUID()}.tmp`;

@@ -10,7 +10,7 @@ import { saveConfig } from '../dist/config.js';
 import { extractPage, isPublicAddress, publicTarget } from '../dist/capture.js';
 const exec=promisify(execFile);
 const cli=resolve('dist/cli.js');
-function fixture(t){const root=realpathSync(mkdtempSync(join(tmpdir(),'mem-test-')));t.after(()=>rmSync(root,{recursive:true,force:true}));return root;}
+function fixture(t){const root=realpathSync(mkdtempSync(join(tmpdir(),'memlio-test-')));t.after(()=>rmSync(root,{recursive:true,force:true}));return root;}
 async function run(home,...args){const {stdout}=await exec(process.execPath,[cli,'--home',home,'--json',...args]);return JSON.parse(stdout);}
 
 test('CLI storage persists across processes and unrelated working directories',async t=>{
