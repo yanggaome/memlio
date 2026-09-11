@@ -4,6 +4,8 @@ Save a bookmark, note, or picture now. Find it later by describing what you reme
 
 **Status: working local prototype, not yet published.** Written in TypeScript, with a CLI, an MCP server, and skills for Codex and Claude Code. One collection works across terminal sessions and project directories.
 
+See [how storing and retrieval work](docs/WORKFLOWS.md) for the complete flow: capture, chunking, keyword indexing, local embeddings, ranking, and the agent/MCP reasoning loop.
+
 ## Install from source
 
 Requires Node.js 22.13+; development and native dependencies have been tested on an Intel Mac with Node 24.19. Use Node 24+ with pnpm 11.19.0 for the reproducible development setup:
@@ -84,6 +86,8 @@ Both registrations use the same absolute collection path and Node executable. Fi
 memlio init --allow-path /absolute/path/to/screenshots
 ```
 
+Restart a running MCP server/client after changing semantic mode or allowed paths; its configuration is loaded at startup.
+
 Direct CLI file arguments authorize reading that selected file. Pasted agent attachments still need an accessible file path for their original bytes to be preserved. Automatic OCR and image understanding are not implemented; descriptions supplied by you or an agent make pictures searchable.
 
 MCP transport and fresh-session persistence have been tested with the official SDK client. The real Codex-to-Claude interactive workflow remains to be exercised; setup has not modified your personal client configuration automatically.
@@ -102,12 +106,15 @@ Saving normally completes capture and indexing before returning, but preserves o
 memlio store https://example.com --defer
 memlio retry
 memlio export /path/to/new-backup-directory
+memlio --home /path/to/restored-collection init --semantic  # Optional: enable similarity search
 memlio --home /path/to/restored-collection import /path/to/new-backup-directory
 memlio --home /path/to/restored-collection retry
 memlio delete <item-id> --yes
 ```
 
 Export includes original assets and JSON records, but not model files or derived embeddings. `reindex` rebuilds search tables from stored records; it cannot repair a lost primary database. Deleting an item does not erase older exports or perform forensic disk erasure.
+
+A fresh restored collection defaults to keyword-only search unless you enable semantic mode; `retry` does not enable it automatically.
 
 No external embedding API is used. Website capture contacts the saved website; the first model setup contacts Hugging Face. Content retrieved through Codex or Claude enters that agent's context and follows its data handling settings. Saved pages are treated as untrusted data.
 

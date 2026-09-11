@@ -1,5 +1,7 @@
 # Prototype architecture decisions
 
+For an end-to-end trace of the implemented commands, see [store and retrieval workflows](WORKFLOWS.md), including chunk sizes, embedding configuration, ranking, MCP calls, and recovery behavior.
+
 ## Shared local core
 
 The TypeScript CLI and stdio MCP server call the same `Memory` implementation. Skills teach the host agent how to capture and inspect candidates. They do not keep independent collections. No service, Docker container, external embedding credential, or running agent is required by the CLI.
