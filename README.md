@@ -4,19 +4,20 @@ A personal memory for Claude Code and Codex. Save a bookmark, note, or picture f
 
 Everything stays on your machine: SQLite records, copies of saved files, a keyword index, and a small local embedding model for natural-language search. No accounts, no cloud, no API keys. A `memlio` command line is included for scripting and backups.
 
-**Status:** working local prototype, MIT-licensed, install from source (not on npm yet). Tested on macOS with Node 24.
+**Status:** early release, MIT-licensed. Tested on macOS with Node 24.
 
 ## Install
 
-Requires Node.js 22.13 or newer and pnpm (`npm install --global pnpm`). See [docs/SETUP.md](docs/SETUP.md) if you need to install Node first.
+Requires Node.js 22.13 or newer. See [docs/SETUP.md](docs/SETUP.md) if you need to install Node first.
 
 ```sh
-git clone https://github.com/yanggaome/memlio && cd memlio
-pnpm install --frozen-lockfile && pnpm build
-node dist/cli.js setup claude     # and/or: node dist/cli.js setup codex
+npm install -g memlio
+memlio setup claude     # and/or: memlio setup codex
 ```
 
 `setup` registers the MCP server and the `/memlio` skill with the agent and downloads the 23 MB embedding model once. Restart the agent afterward.
+
+To run from a checkout instead: `pnpm install --frozen-lockfile && pnpm build`, then use `node dist/cli.js` in place of `memlio`.
 
 ## Use
 
@@ -34,7 +35,6 @@ The first URL, path, or quoted text is what gets saved; the rest becomes your no
 The same collection from a terminal:
 
 ```sh
-pnpm link --global                         # puts `memlio` on your PATH
 memlio store "Try weekly screenshots of competitor pricing"
 memlio store https://example.com/article --note "For my queue project"
 memlio find "competitor pricing"

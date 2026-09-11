@@ -1,9 +1,26 @@
 {
   "name": "memlio",
   "version": "0.1.0",
+  "description": "Personal memory for Claude Code and Codex: save bookmarks, notes, and files, find them later by description. Local SQLite, local embeddings, MCP server and CLI.",
   "license": "MIT",
-  "private": true,
-  "description": "Local personal memory for your terminal, Codex, and Claude Code",
+  "author": "Yang Gao",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yanggaome/memlio.git"
+  },
+  "homepage": "https://github.com/yanggaome/memlio#readme",
+  "bugs": "https://github.com/yanggaome/memlio/issues",
+  "keywords": [
+    "mcp",
+    "claude-code",
+    "codex",
+    "bookmarks",
+    "notes",
+    "memory",
+    "semantic-search",
+    "sqlite",
+    "local-first"
+  ],
   "type": "module",
   "bin": {
     "memlio": "dist/cli.js"
@@ -11,12 +28,15 @@
   "files": [
     "dist",
     "skills",
+    "docs",
     "README.md",
-    "PLAN.md",
-    "docs"
+    "LICENSE"
   ],
   "engines": {
     "node": ">=22.13.0"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "build": "tsc",

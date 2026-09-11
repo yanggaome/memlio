@@ -11,7 +11,7 @@ nvm install 24
 npm install --global pnpm
 ```
 
-Run `memlio setup` with the Node you want the agent to use. Setup records the absolute path of that Node executable and of the checkout, so keep the checkout where it is and re-run setup if you move either.
+Run `memlio setup` with the Node you want the agent to use. Setup records the absolute path of that Node executable and of the installed `memlio` package, so re-run setup after switching Node versions or reinstalling the package.
 
 The Node bundled inside ChatGPT.app cannot load the ONNX runtime that pnpm extracts (unsigned binary). Use a separately installed Node.
 
@@ -70,5 +70,5 @@ Export writes `records.json` and copies of the original files. Import restores t
 
 - **`Semantic search unavailable: The local embedding model is not downloaded`** appears as a warning on search. Run any command with network access, or `memlio repair`, and the model downloads.
 - **A bookmark shows `Page capture failed: The site blocked automated capture`**. The site uses a bot challenge; the bookmark is saved. Add a note describing the page, or paste its text as a separate note.
-- **`memlio` is not found in the terminal**. Either run `pnpm link --global` in the checkout, or use `node /path/to/memlio/dist/cli.js`. The shell's PATH must include your Node installation.
+- **`memlio` is not found in the terminal**. The shell's PATH must include your Node installation's global `bin` directory (`npm prefix -g`). From a source checkout, use `node /path/to/memlio/dist/cli.js` or `pnpm link --global`.
 - **The agent says the memlio tools are unavailable**. Run `memlio setup <client>` again and restart the agent.
