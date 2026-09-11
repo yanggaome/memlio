@@ -95,7 +95,7 @@ MCP transport and fresh-session persistence have been tested with the official S
 ## What gets saved
 
 - **Notes:** original text and your context.
-- **Bookmarks:** original URL, context, and an attempted readable Markdown snapshot with capture time and final URL. This is a text snapshot, not raw HTML, a screenshot, or a complete site archive. Login-only and JavaScript-only pages may fail; the bookmark remains saved with an error.
+- **Bookmarks:** original URL, context, and an attempted readable Markdown snapshot with capture time and final URL. This is a text snapshot, not raw HTML, a screenshot, or a complete site archive. Login-only pages, JavaScript-only pages, and sites behind bot challenges (for example Cloudflare's managed challenge, which returns HTTP 403 to non-browser clients regardless of user agent) fail to capture; the bookmark remains saved with an error, and `retry` will not get past a bot challenge. To make such a bookmark findable, store it with a `--note` describing the page, or paste the page text as a note with the URL as context.
 - **Files:** a copy of the original bytes, independent of the source path. Text extraction currently covers `.txt`, `.md`, `.csv`, and `.json`. Images and other binaries rely on supplied descriptions; PDF text extraction is not implemented.
 
 Storage defaults to `~/.local/share/memlio`. Override it with `MEMLIO_HOME` or `memlio --home /path/to/collection ...`. SQLite contains the authoritative records and rebuildable search tables; copied assets live alongside it. Keep the collection outside your source repository.

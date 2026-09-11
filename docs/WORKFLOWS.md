@@ -71,7 +71,9 @@ For a new item, Memlio assigns an `m_…` ID. It copies file bytes to a content-
 | `.txt`, `.md`, `.csv`, `.json` file | UTF-8 text, limited to the first 1 million JavaScript string units | Complete file copy, within the file-size limit |
 | Image, PDF, or other binary | Empty body; title and supplied note/description are searchable | Complete file copy |
 
-URL capture fetches the page over HTTP(S), validates public destinations through redirects, and applies a 20-second deadline, five-redirect limit, and 5 MiB response limit. HTML passes through Readability and Turndown to extract readable Markdown. There is no browser execution, authenticated session, full-site crawl, raw HTML archive, or screenshot capture.
+URL capture fetches the page over HTTP(S), validates public destinations through redirects, and applies a 20-second deadline, five-redirect limit, and 5 MiB response limit. HTML passes through Readability and Turndown to extract readable Markdown. There is no browser execution, authenticated session, full-site crawl, raw HTML archive, or screenshot capture. The fetcher identifies itself as `memlio/0.1 (personal bookmark capture)` and does not impersonate a browser.
+
+Sites behind bot challenges (such as Cloudflare's managed challenge) return HTTP 403 with a JavaScript challenge page to any non-browser client; a browser user agent does not help because the challenge inspects TLS and script execution. These pages, like login-only and JavaScript-rendered pages, are saved as bookmarks with `captureError`, and `memlio retry` will fail the same way. Supplying a note about the page at save time, or pasting its text as a separate note, is the current workaround; a headless-browser or in-browser capture path is not implemented.
 
 On successful capture, Memlio updates the record and rebuilds its chunks and keyword entries using the extracted body. On failure, it keeps the bookmark and records `captureError`. Semantic indexing can still succeed for the remaining bookmark/context text.
 

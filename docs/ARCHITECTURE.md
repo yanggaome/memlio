@@ -24,7 +24,7 @@ FTS5 uses stemming and OR queries after basic stop-word filtering. Text is divid
 
 Original input is committed before page capture or model inference. Failed enrichment leaves the original and an explicit status. `retry` resumes failures or pending work; `--defer` requires a later retry. Concurrent workers may repeat enrichment, but conditional chunk updates prevent attaching vectors to changed text. There is no job lease or continuously running worker yet.
 
-URL capture supports public HTTP(S) pages, validates and pins DNS destinations per redirect, and applies redirect, timeout, and size limits. It extracts readable Markdown without executing scripts. Private/loopback destinations, embedded URL credentials, and nonstandard ports are rejected. Unsupported or inaccessible pages remain bookmarks. This is not a full browser or archive crawler.
+URL capture supports public HTTP(S) pages, validates and pins DNS destinations per redirect, and applies redirect, timeout, and size limits. It extracts readable Markdown without executing scripts. Private/loopback destinations, embedded URL credentials, and nonstandard ports are rejected. Unsupported or inaccessible pages remain bookmarks, including pages behind bot challenges that reject non-browser clients with HTTP 403; the fetcher does not impersonate a browser, and doing so would not pass TLS/JavaScript-based challenges anyway. This is not a full browser or archive crawler.
 
 Images are stored as bytes; supplied descriptions are indexed. Automatic OCR, vision, PDF extraction, source-page screenshots, and browser attachment transfer are unfinished milestones.
 
