@@ -1,14 +1,16 @@
 # Memlio
 
-Save a bookmark, note, or picture now. Find it later by describing what you remember.
+A personal memory for Claude Code and Codex. Save a bookmark, note, or picture from inside the agent; find it later, in any project or session, by describing what you remember.
 
-**Status: working local prototype, not yet published.** Written in TypeScript, with a CLI, an MCP server, and skills for Codex and Claude Code. One collection works across terminal sessions and project directories.
+**Status: working local prototype, not yet published.** Memlio runs as a local MCP server with a `/memlio` skill for Claude Code and a `$memlio` skill for Codex. Both agents share one collection on your machine: SQLite records, copies of saved files, a keyword index, and local embeddings for natural-language search. No external embedding API and no cloud storage. A standalone CLI is also included for scripting, backup, and use without an agent.
 
 See [how storing and retrieval work](docs/WORKFLOWS.md) for the complete flow: capture, chunking, keyword indexing, local embeddings, ranking, and the agent/MCP reasoning loop.
 
-## Install from source
+## Quick start
 
-Requires Node.js 22.13+; development and native dependencies have been tested on an Intel Mac with Node 24.19 and 24.21. Use Node 24+ with pnpm 11.19.0 for the reproducible development setup.
+### 1. Install Node and build
+
+Requires Node.js 22.13+. Development and native dependencies have been tested on an Intel Mac with Node 24.19 and 24.21 and pnpm 11.19.0.
 
 If Node is not installed, a user-space install through [nvm](https://github.com/nvm-sh/nvm) needs no sudo or compiler and works on older macOS releases where Homebrew would build Node from source:
 
@@ -16,31 +18,83 @@ If Node is not installed, a user-space install through [nvm](https://github.com/
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
 # open a new shell, then:
 nvm install 24
+npm install --global pnpm@11.19.0
 ```
 
-Then build and try the CLI:
+Then build and prepare the collection. `init` creates `~/.local/share/memlio` and downloads the ~23 MB local embedding model once, so the first save from an agent does not wait on a download:
 
 ```sh
 cd /path/to/memlio
 pnpm install --frozen-lockfile
 pnpm build
 node dist/cli.js init
-node dist/cli.js store "An idea to revisit"
-node dist/cli.js retrieve "idea"
 ```
 
-If you already have Node and npm, install pnpm with `npm install --global pnpm@11.19.0`. In iTerm2, the shell's PATH must include your Node installation; installing the Codex desktop app alone does not provide these commands on PATH.
+### 2. Register with Claude Code and/or Codex
 
-To use `memlio` from any directory, link this checkout:
+```sh
+node dist/cli.js setup claude
+node dist/cli.js setup codex          # add --dry-run to preview changes
+```
+
+Setup registers the MCP server and installs the bundled skill, preserving unrelated client settings and backing up existing configuration files. It records the absolute path of the Node executable that ran it, so run it with the Node you want the server to use (for example the nvm-installed one, not an application-bundled copy). Keep the checkout in place afterward; re-run setup if you move it.
+
+Restart the client. In Claude Code, `claude mcp list` should show `memlio: … - ✔ Connected`, and `/memlio` appears as a skill in a new session.
+
+### 3. Save and recall from the agent
+
+```text
+# Claude Code
+/memlio store https://example.com/article
+/memlio store https://example.com/article why this page matters to me
+/memlio store /absolute/path/to/dashboard.png dark dashboard with orange charts
+/memlio retrieve that article about background jobs
+
+# Codex
+$memlio store A useful thought for later
+$memlio retrieve that thought about background jobs
+```
+
+The skill hands the whole argument string to the agent: the first URL, path, or quoted text is what gets saved, and free text after it becomes the note. On retrieve, the agent searches the collection, inspects likely matches, and answers with the original link or file plus excerpts as evidence. Results are candidates, not guaranteed matches; the agent is instructed to say so when matches are weak or absent, and to treat saved content as data rather than instructions.
+
+## Using Memlio from an agent
+
+**Notes and bookmarks** need nothing extra. A bookmark is fetched immediately for a readable text snapshot; if the fetch fails, the bookmark is still saved with an error and the note remains searchable.
+
+**Files** through MCP require a client-provided filesystem root or an explicitly allowed folder, because the server will not read arbitrary paths on the agent's behalf:
+
+```sh
+node dist/cli.js init --allow-path /absolute/path/to/screenshots
+```
+
+Direct CLI file arguments authorize reading that selected file. A pasted image attachment is not automatically available to the server as bytes; it needs an accessible file path for the original to be preserved. Automatic OCR and image understanding are not implemented; a description supplied by you or the agent is what makes a picture searchable.
+
+**Duplicates:** saving the same content with the same title and note is deduplicated to the existing record. Saving it again with a different note creates a second record rather than updating the first; delete the older one if you no longer want it (`/memlio` can delete an explicitly identified item, or use `memlio delete <id> --yes`).
+
+**Configuration changes** (semantic mode, allowed paths) are read at server startup. Restart the client after changing them.
+
+**What has been exercised:** MCP transport and fresh-session persistence with the official SDK client, and the Claude Code path interactively: `setup claude`, a restart, `/memlio store` of an arXiv abstract and a blog post (captured and embedded), a bot-challenged page (saved as a bookmark with an error), and `/memlio retrieve` finding the paper by a paraphrased description. The Codex interactive workflow remains to be exercised.
+
+## What gets saved
+
+- **Notes:** original text and your context.
+- **Bookmarks:** original URL, context, and an attempted readable Markdown snapshot with capture time and final URL. This is a text snapshot, not raw HTML, a screenshot, or a complete site archive. Login-only pages, JavaScript-only pages, and sites behind bot challenges (for example Cloudflare's managed challenge, which returns HTTP 403 to non-browser clients regardless of user agent) fail to capture; the bookmark remains saved with an error, and `retry` will not get past a bot challenge. To make such a bookmark findable, save it with a note describing the page, or paste the page text as a note with the URL as context.
+- **Files:** a copy of the original bytes, independent of the source path. Text extraction currently covers `.txt`, `.md`, `.csv`, and `.json`. Images and other binaries rely on supplied descriptions; PDF text extraction is not implemented.
+
+Storage defaults to `~/.local/share/memlio`: `memory.sqlite` holds the authoritative records and rebuildable search tables, `assets/` holds copied files, and `models/` holds the cached embedding model. Override the location with `MEMLIO_HOME` or `memlio --home /path/to/collection ...`, and re-run setup so the clients point at the new path. Keep the collection outside your source repository.
+
+Search is hybrid keyword/vector by default. Embeddings are computed locally with a quantized MiniLM model; nothing is sent to an embedding API. Website capture contacts the saved website; the first model setup contacts Hugging Face. Content retrieved through Codex or Claude enters that agent's context and follows its data handling settings. Saved pages are treated as untrusted data.
+
+## Standalone CLI
+
+Everything the agent does is also available directly, without an agent or an API key. To use `memlio` from any directory, link the checkout:
 
 ```sh
 pnpm link --global
 memlio doctor
 ```
 
-The direct `node /absolute/path/to/memlio/dist/cli.js` form also works. Keep the checkout in place after linking or registering clients. The package is named `memlio` and remains private until release; there is no public `npm install -g memlio` release yet.
-
-## Save and recall
+The direct `node /absolute/path/to/memlio/dist/cli.js` form also works. In iTerm2, the shell's PATH must include your Node installation; installing the Codex desktop app alone does not provide these commands on PATH. The package is named `memlio` and remains private until release; there is no public `npm install -g memlio` yet.
 
 ```sh
 memlio store "Try weekly screenshots of competitor pricing"
@@ -50,89 +104,38 @@ memlio store /absolute/path/to/dashboard.png \
 printf '%s\n' 'A longer note from another command' | memlio store --stdin
 
 memlio retrieve "competitor pricing"                 # Hybrid search by default
+memlio retrieve "orange charts" --kind file --limit 5
+memlio retrieve "queue project" --mode keyword
 memlio get <item-id>
 memlio status
 memlio delete <item-id> --yes
 ```
 
-Absolute paths, `./paths`, and `../paths` are recognized as files. For a bare filename, use `--kind file`. Use `--kind note` for literal text resembling a URL or path. Exact repeated content with the same title/context is deduplicated; adding different context creates another record.
+Absolute paths, `./paths`, and `../paths` are recognized as files. For a bare filename, use `--kind file`. Use `--kind note` for literal text resembling a URL or path.
 
-Local natural-language similarity search is enabled by default. `memlio init` downloads/prepares the quantized MiniLM model on first use. Saving without initialization also loads the model when embeddings are needed. To re-enable semantic search after opting out and cover previously saved items:
+Saving normally completes capture and indexing before returning, but preserves originals first. Use `--defer` for an immediate save and run `memlio retry` later. There is no background daemon yet.
+
+### Semantic search options
+
+New collections enable local embeddings and hybrid search. `memlio init` downloads/prepares the model on first use; saving without initialization also loads the model when needed. To opt out of embeddings and model downloads, use `memlio init --keyword-only`; later `init` calls preserve that explicit preference. To re-enable it and cover previously saved items:
 
 ```sh
 memlio init --semantic       # Re-enable after an explicit keyword-only opt-out
 memlio reindex               # Adds embeddings to previously saved content
-memlio retrieve "that idea for monitoring rival companies"
-memlio retrieve "orange charts" --kind file --limit 5
-memlio retrieve "queue project" --mode keyword
 ```
 
-New collections use hybrid keyword/vector search by default. Use `memlio init --keyword-only` to opt out of embeddings and model downloads; later `init` calls preserve that explicit preference. Results are candidates with evidence, not guaranteed matches. The agent can inspect them and refine its query. Direct CLI retrieval also works without an agent or an API key.
+After the model is cached, `MEMLIO_OFFLINE=1 memlio retrieve "..."` works without network access; `MEMLIO_OFFLINE=1` also disables bookmark fetching. `MEMLIO_MODEL_CACHE` optionally selects a shared model cache.
 
-The downloaded model files total about 23 MB. Node dependencies add substantially more disk space. After the model is cached, `MEMLIO_OFFLINE=1 memlio retrieve "..."` works without network access. `MEMLIO_OFFLINE=1` also disables bookmark fetching. `MEMLIO_MODEL_CACHE` optionally selects a shared model cache.
-
-## Connect Codex and Claude Code
+### Backup and recovery
 
 ```sh
-memlio setup codex --dry-run
-memlio setup codex
-memlio setup claude
-```
-
-Setup registers an MCP server and installs the bundled personal skill, preserving unrelated client settings and backing up existing configuration files. Restart each client afterward.
-
-Setup records the absolute path of the Node executable that ran it, so run it with the Node you want the MCP server to use (for example the nvm-installed one, not an application-bundled copy). For Claude Code, `claude mcp list` should then show `memlio: … - ✔ Connected`, and `/memlio` appears as a skill in a new session.
-
-```text
-# Codex
-$memlio store A useful thought for later
-$memlio retrieve that thought about background jobs
-
-# Claude Code
-/memlio store https://example.com/article
-/memlio store https://example.com/article why this page matters to me
-/memlio retrieve that article about background jobs
-```
-
-The skill hands the whole argument string to the agent; free text after the saved item becomes its note. Saving the same item again with a different note creates a second record rather than updating the first, so delete the older one if you no longer want it.
-
-Both registrations use the same absolute collection path and Node executable. File capture through MCP requires a client-provided filesystem root or an explicitly allowed folder:
-
-```sh
-memlio init --allow-path /absolute/path/to/screenshots
-```
-
-Restart a running MCP server/client after changing semantic mode or allowed paths; its configuration is loaded at startup.
-
-Direct CLI file arguments authorize reading that selected file. Pasted agent attachments still need an accessible file path for their original bytes to be preserved. Automatic OCR and image understanding are not implemented; descriptions supplied by you or an agent make pictures searchable.
-
-MCP transport and fresh-session persistence have been tested with the official SDK client, and the Claude Code path has been exercised interactively: `memlio setup claude`, a restart, then `/memlio store` of an arXiv abstract and a blog post (captured and embedded), a bot-challenged page (saved as a bookmark with an error), and `/memlio retrieve` finding the paper by a paraphrased description. The Codex interactive workflow remains to be exercised.
-
-## What gets saved
-
-- **Notes:** original text and your context.
-- **Bookmarks:** original URL, context, and an attempted readable Markdown snapshot with capture time and final URL. This is a text snapshot, not raw HTML, a screenshot, or a complete site archive. Login-only pages, JavaScript-only pages, and sites behind bot challenges (for example Cloudflare's managed challenge, which returns HTTP 403 to non-browser clients regardless of user agent) fail to capture; the bookmark remains saved with an error, and `retry` will not get past a bot challenge. To make such a bookmark findable, store it with a `--note` describing the page, or paste the page text as a note with the URL as context.
-- **Files:** a copy of the original bytes, independent of the source path. Text extraction currently covers `.txt`, `.md`, `.csv`, and `.json`. Images and other binaries rely on supplied descriptions; PDF text extraction is not implemented.
-
-Storage defaults to `~/.local/share/memlio`. Override it with `MEMLIO_HOME` or `memlio --home /path/to/collection ...`. SQLite contains the authoritative records and rebuildable search tables; copied assets live alongside it. Keep the collection outside your source repository.
-
-Saving normally completes capture and indexing before returning, but preserves originals first. Use `--defer` for an immediate save and run `memlio retry` later. There is no background daemon yet. Fetching and local inference are independent of an active agent session.
-
-```sh
-memlio store https://example.com --defer
-memlio retry
 memlio export /path/to/new-backup-directory
-memlio --home /path/to/restored-collection init  # Prepare the default local embedding model
+memlio --home /path/to/restored-collection init
 memlio --home /path/to/restored-collection import /path/to/new-backup-directory
 memlio --home /path/to/restored-collection retry
-memlio delete <item-id> --yes
 ```
 
-Export includes original assets and JSON records, but not model files or derived embeddings. `reindex` rebuilds search tables from stored records; it cannot repair a lost primary database. Deleting an item does not erase older exports or perform forensic disk erasure.
-
-A fresh restored collection defaults to semantic mode; `retry` generates its missing embeddings. An existing explicit keyword-only preference is preserved until `init --semantic` re-enables it.
-
-No external embedding API is used. Website capture contacts the saved website; the first model setup contacts Hugging Face. Content retrieved through Codex or Claude enters that agent's context and follows its data handling settings. Saved pages are treated as untrusted data.
+Export includes original assets and JSON records, but not model files or derived embeddings. A fresh restored collection defaults to semantic mode, and `retry` generates its missing embeddings; an existing explicit keyword-only preference is preserved until `init --semantic` re-enables it. `reindex` rebuilds search tables from stored records; it cannot repair a lost primary database. Deleting an item does not erase older exports or perform forensic disk erasure.
 
 ## Development and current limits
 
