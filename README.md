@@ -8,7 +8,17 @@ See [how storing and retrieval work](docs/WORKFLOWS.md) for the complete flow: c
 
 ## Install from source
 
-Requires Node.js 22.13+; development and native dependencies have been tested on an Intel Mac with Node 24.19. Use Node 24+ with pnpm 11.19.0 for the reproducible development setup:
+Requires Node.js 22.13+; development and native dependencies have been tested on an Intel Mac with Node 24.19 and 24.21. Use Node 24+ with pnpm 11.19.0 for the reproducible development setup.
+
+If Node is not installed, a user-space install through [nvm](https://github.com/nvm-sh/nvm) needs no sudo or compiler and works on older macOS releases where Homebrew would build Node from source:
+
+```sh
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+# open a new shell, then:
+nvm install 24
+```
+
+Then build and try the CLI:
 
 ```sh
 cd /path/to/memlio
@@ -42,6 +52,7 @@ printf '%s\n' 'A longer note from another command' | memlio store --stdin
 memlio retrieve "competitor pricing"                 # Hybrid search by default
 memlio get <item-id>
 memlio status
+memlio delete <item-id> --yes
 ```
 
 Absolute paths, `./paths`, and `../paths` are recognized as files. For a bare filename, use `--kind file`. Use `--kind note` for literal text resembling a URL or path. Exact repeated content with the same title/context is deduplicated; adding different context creates another record.
@@ -70,6 +81,8 @@ memlio setup claude
 
 Setup registers an MCP server and installs the bundled personal skill, preserving unrelated client settings and backing up existing configuration files. Restart each client afterward.
 
+Setup records the absolute path of the Node executable that ran it, so run it with the Node you want the MCP server to use (for example the nvm-installed one, not an application-bundled copy). For Claude Code, `claude mcp list` should then show `memlio: … - ✔ Connected`, and `/memlio` appears as a skill in a new session.
+
 ```text
 # Codex
 $memlio store A useful thought for later
@@ -77,8 +90,11 @@ $memlio retrieve that thought about background jobs
 
 # Claude Code
 /memlio store https://example.com/article
+/memlio store https://example.com/article why this page matters to me
 /memlio retrieve that article about background jobs
 ```
+
+The skill hands the whole argument string to the agent; free text after the saved item becomes its note. Saving the same item again with a different note creates a second record rather than updating the first, so delete the older one if you no longer want it.
 
 Both registrations use the same absolute collection path and Node executable. File capture through MCP requires a client-provided filesystem root or an explicitly allowed folder:
 
@@ -90,7 +106,7 @@ Restart a running MCP server/client after changing semantic mode or allowed path
 
 Direct CLI file arguments authorize reading that selected file. Pasted agent attachments still need an accessible file path for their original bytes to be preserved. Automatic OCR and image understanding are not implemented; descriptions supplied by you or an agent make pictures searchable.
 
-MCP transport and fresh-session persistence have been tested with the official SDK client. The real Codex-to-Claude interactive workflow remains to be exercised; setup has not modified your personal client configuration automatically.
+MCP transport and fresh-session persistence have been tested with the official SDK client, and the Claude Code path has been exercised interactively: `memlio setup claude`, a restart, then `/memlio store` of an arXiv abstract and a blog post (captured and embedded), a bot-challenged page (saved as a bookmark with an error), and `/memlio retrieve` finding the paper by a paraphrased description. The Codex interactive workflow remains to be exercised.
 
 ## What gets saved
 

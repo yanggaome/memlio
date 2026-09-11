@@ -43,3 +43,11 @@ The repo, package, CLI, MCP server/tools, agent skills, and environment variable
 ## Semantic search default
 
 New collections enable embeddings and hybrid search by default. The offline real-model regression now exercises plain `init` and default retrieval. Additional regressions cover saving without initialization, default hybrid retrieval, explicit keyword-only initialization with an empty offline model cache, preservation of that preference on later initialization/path changes, and failed attempts to re-enable embeddings without a cached model. General storage and MCP transport tests explicitly use keyword-only collections to avoid incidental model downloads. All 23 tests and TypeScript compilation pass.
+
+## Claude Code interactive acceptance
+
+Run on the same Intel Mac with Node v24.21.0 installed through nvm; the machine had no Node on PATH beforehand, and Homebrew could not install one (no write access to `/usr/local/Cellar`, and it would have compiled Node and its dependencies from source on macOS 13). `memlio setup claude` registered the MCP server with the nvm Node path and installed the skill; `claude mcp list` reported the server connected after a restart.
+
+Through the `/memlio` skill in a live session: an arXiv abstract and a Hugging Face blog post were captured and embedded; `https://ifm.ai/k2/` was saved as a bookmark with `captureError` HTTP 403 from a Cloudflare managed challenge (`cf-mitigated: challenge`; a browser user agent also received 403); re-saving the same URL deduplicated, and re-saving with a title and note created a second record, after which the bare one was deleted through `memlio_delete`. `/memlio retrieve llm as judge from netflix` returned the arXiv paper first in hybrid mode with keyword and semantic (0.50) evidence. The collection lives in `~/.local/share/memlio` with user-only file permissions.
+
+The 23-test suite also passes under the nvm Node. Under the Node bundled inside ChatGPT.app, the real-model test fails at `dlopen` because pnpm's extracted `onnxruntime_binding.node` is unsigned; ad-hoc signing or using a separately installed Node resolves it.
