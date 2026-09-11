@@ -36,4 +36,4 @@ MCP tools validate input, bound search results and content previews, and restric
 
 ## Release boundary
 
-The repository is a development prototype, with a private package named `memlio`. Before release: validate a fresh dependency install, exercise both real clients, add a supported-platform CI matrix, settle the original-code license, review dependency/model distribution terms, and evaluate a realistic corpus with hard distractors and no-match examples. Do not publish model weights or personal data in the software repository.
+The repository is a development prototype, with a private package named `memlio`. Before release: validate a fresh dependency install, exercise both real clients, add a supported-platform CI matrix, review dependency/model distribution terms, and evaluate a realistic corpus with hard distractors and no-match examples. Do not publish model weights or personal data in the software repository.

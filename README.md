@@ -2,7 +2,7 @@
 
 A personal memory for Claude Code and Codex. Save a bookmark, note, or picture from inside the agent; find it later, in any project or session, by describing what you remember.
 
-**Status: working local prototype, not yet published.** Memlio runs as a local MCP server with a `/memlio` skill for Claude Code and a `$memlio` skill for Codex. Both agents share one collection on your machine: SQLite records, copies of saved files, a keyword index, and local embeddings for natural-language search. No external embedding API and no cloud storage. A standalone CLI is also included for scripting, backup, and use without an agent.
+**Status: working local prototype, MIT-licensed, install from source (not on npm yet).** Memlio runs as a local MCP server with a `/memlio` skill for Claude Code and a `$memlio` skill for Codex. Both agents share one collection on your machine: SQLite records, copies of saved files, a keyword index, and local embeddings for natural-language search. No external embedding API and no cloud storage. A standalone CLI is also included for scripting, backup, and use without an agent.
 
 See [how storing and retrieval work](docs/WORKFLOWS.md) for the complete flow: capture, chunking, keyword indexing, local embeddings, ranking, and the agent/MCP reasoning loop.
 
@@ -149,4 +149,8 @@ pnpm pack
 
 The real-model regression test skips unless `MEMLIO_MODEL_CACHE` is set; the other tests do not download models. The evaluation is synthetic, with no private collection data. See [validation results](docs/VALIDATION.md), [architecture decisions](docs/ARCHITECTURE.md), and the [original plan and milestone status](PLAN.md).
 
-Current scope is a single user's Mac. Semantic search scans vectors in memory and is intended for small collections; large-library performance, multilingual quality, OCR, browser-assisted snapshots, device sync, fresh-install testing, Linux support, and the original-code license decision remain release work. pnpm dependency build scripts are disabled for the tested Mac prebuilt binaries; other platforms may need different installation handling.
+Current scope is a single user's Mac. Semantic search scans vectors in memory and is intended for small collections; large-library performance, multilingual quality, OCR, browser-assisted snapshots, device sync, fresh-install testing, and Linux support remain release work. pnpm dependency build scripts are disabled for the tested Mac prebuilt binaries; other platforms may need different installation handling.
+
+## License
+
+[MIT](LICENSE).

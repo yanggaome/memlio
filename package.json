@@ -1,6 +1,7 @@
 {
   "name": "memlio",
   "version": "0.1.0",
+  "license": "MIT",
   "private": true,
   "description": "Local personal memory for your terminal, Codex, and Claude Code",
   "type": "module",
