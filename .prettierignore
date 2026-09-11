@@ -1,0 +1,6 @@
+dist/
+node_modules/
+pnpm-lock.yaml
+docs/evaluation-synthetic.json
+PLAN.md
+docs/VALIDATION.md

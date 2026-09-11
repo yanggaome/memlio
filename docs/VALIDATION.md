@@ -1,5 +1,7 @@
 # Prototype validation
 
+> Historical record. These runs predate the simplification that removed `init`, `retry`, `reindex`, `doctor`, `--mode`, `--defer`, and the keyword-only setting, and renamed `retrieve` to `find`. Behaviour described below still holds unless it refers to one of those commands. The automated suite now has 27 tests (26 without the cached model).
+
 Tested on an Intel Mac, macOS 13.7.8, Node v24.19.0. Results are from this checkout, not upstream benchmark claims.
 
 ## Automated checks
