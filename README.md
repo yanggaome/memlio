@@ -1,39 +1,126 @@
 # mem
 
-A proposed lightweight personal memory tool for Codex, Claude Code, and the terminal.
+Save a bookmark, note, or picture now. Find it later by describing what you remember.
 
-Save bookmarks, notes, and pictures with minimal effort. Find the original later by describing what you vaguely remember.
+**Status: working local prototype, not yet published.** Written in TypeScript, with a CLI, an MCP server, and skills for Codex and Claude Code. One collection works across terminal sessions and project directories.
 
-**Status: planning.** There is no implementation yet. Commands below describe the intended interface.
+## Install from source
 
-```text
-# Claude Code
-/mem store https://example.com/article
-/mem store Idea: track competitor pricing with screenshots
-/mem retrieve that article about reliable background jobs
+Requires Node.js 22.13+; development and native dependencies have been tested on an Intel Mac with Node 24.19. Use Node 24+ with pnpm 11.19.0 for the reproducible development setup:
 
-# Codex
-$mem store ...
-$mem retrieve ...
-
-# Terminal
-mem store "An idea to revisit"
-mem store /absolute/path/to/image.png
-mem retrieve "the dark dashboard with orange charts"
+```sh
+cd /path/to/mem
+pnpm install --frozen-lockfile
+pnpm build
+node dist/cli.js init
+node dist/cli.js store "An idea to revisit"
+node dist/cli.js retrieve "idea"
 ```
 
-The same personal collection should work across projects, sessions, and both agents on one machine.
+If you already have Node and npm, install pnpm with `npm install --global pnpm@11.19.0`. In iTerm2, the shell's PATH must include your Node installation; installing the Codex desktop app alone does not provide these commands on PATH.
 
-Read [PLAN.md](PLAN.md) for the product proposal, existing-project research, architecture, implementation milestones, and acceptance criteria.
+To use `mem` from any directory, link this checkout:
 
-## Initial direction
+```sh
+pnpm link --global
+mem doctor
+```
 
-- A standalone CLI, an MCP server, and small agent-specific skills.
-- Preserve original content and the user's reason for saving it.
-- Keep data local by default and independent of the search engine.
-- Prototype QMD as a replaceable search component before committing to it.
-- Start with explicit capture and retrieval; add device sync and a browser extension later.
+The direct `node /absolute/path/to/mem/dist/cli.js` form also works. Keep the checkout in place after linking or registering clients. There is no public `npm install -g mem` release yet; `mem-local-prototype` is a temporary private package name.
 
-## Repository scope
+## Save and recall
 
-This repository contains the software design and, eventually, its implementation. Personal memory collections, credentials, downloaded models, and private evaluation data belong outside the repository.
+```sh
+mem store "Try weekly screenshots of competitor pricing"
+mem store https://example.com/article --note "For my queue project"
+mem store /absolute/path/to/dashboard.png \
+  --description "Dark dashboard with orange charts and a left sidebar"
+printf '%s\n' 'A longer note from another command' | mem store --stdin
+
+mem retrieve "competitor pricing"                 # Keyword search initially
+mem get <item-id>
+mem status
+```
+
+Absolute paths, `./paths`, and `../paths` are recognized as files. For a bare filename, use `--kind file`. Use `--kind note` for literal text resembling a URL or path. Exact repeated content with the same title/context is deduplicated; adding different context creates another record.
+
+Enable local natural-language similarity search:
+
+```sh
+mem init --semantic       # Downloads a quantized MiniLM model on first use
+mem reindex               # Adds embeddings to previously saved content
+mem retrieve "that idea for monitoring rival companies"
+mem retrieve "orange charts" --kind file --limit 5
+mem retrieve "queue project" --mode keyword
+```
+
+With semantic search enabled, the default is hybrid keyword/vector search. Results are candidates with evidence, not guaranteed matches. The agent can inspect them and refine its query. Direct CLI retrieval also works without an agent or an API key.
+
+The downloaded model files total about 23 MB. Node dependencies add substantially more disk space. After the model is cached, `MEM_OFFLINE=1 mem retrieve "..."` works without network access. `MEM_OFFLINE=1` also disables bookmark fetching. `MEM_MODEL_CACHE` optionally selects a shared model cache.
+
+## Connect Codex and Claude Code
+
+```sh
+mem setup codex --dry-run
+mem setup codex
+mem setup claude
+```
+
+Setup registers an MCP server and installs the bundled personal skill, preserving unrelated client settings and backing up existing configuration files. Restart each client afterward.
+
+```text
+# Codex
+$mem store A useful thought for later
+$mem retrieve that thought about background jobs
+
+# Claude Code
+/mem store https://example.com/article
+/mem retrieve that article about background jobs
+```
+
+Both registrations use the same absolute collection path and Node executable. File capture through MCP requires a client-provided filesystem root or an explicitly allowed folder:
+
+```sh
+mem init --allow-path /absolute/path/to/screenshots
+```
+
+Direct CLI file arguments authorize reading that selected file. Pasted agent attachments still need an accessible file path for their original bytes to be preserved. Automatic OCR and image understanding are not implemented; descriptions supplied by you or an agent make pictures searchable.
+
+MCP transport and fresh-session persistence have been tested with the official SDK client. The real Codex-to-Claude interactive workflow remains to be exercised; setup has not modified your personal client configuration automatically.
+
+## What gets saved
+
+- **Notes:** original text and your context.
+- **Bookmarks:** original URL, context, and an attempted readable Markdown snapshot with capture time and final URL. This is a text snapshot, not raw HTML, a screenshot, or a complete site archive. Login-only and JavaScript-only pages may fail; the bookmark remains saved with an error.
+- **Files:** a copy of the original bytes, independent of the source path. Text extraction currently covers `.txt`, `.md`, `.csv`, and `.json`. Images and other binaries rely on supplied descriptions; PDF text extraction is not implemented.
+
+Storage defaults to `~/.local/share/mem`. Override it with `MEM_HOME` or `mem --home /path/to/collection ...`. SQLite contains the authoritative records and rebuildable search tables; copied assets live alongside it. Keep the collection outside your source repository.
+
+Saving normally completes capture and indexing before returning, but preserves originals first. Use `--defer` for an immediate save and run `mem retry` later. There is no background daemon yet. Fetching and local inference are independent of an active agent session.
+
+```sh
+mem store https://example.com --defer
+mem retry
+mem export /path/to/new-backup-directory
+mem --home /path/to/restored-collection import /path/to/new-backup-directory
+mem --home /path/to/restored-collection retry
+mem delete <item-id> --yes
+```
+
+Export includes original assets and JSON records, but not model files or derived embeddings. `reindex` rebuilds search tables from stored records; it cannot repair a lost primary database. Deleting an item does not erase older exports or perform forensic disk erasure.
+
+No external embedding API is used. Website capture contacts the saved website; the first model setup contacts Hugging Face. Content retrieved through Codex or Claude enters that agent's context and follows its data handling settings. Saved pages are treated as untrusted data.
+
+## Development and current limits
+
+```sh
+pnpm test
+pnpm check
+MEM_MODEL_CACHE=/path/to/downloaded/models pnpm test
+MEM_MODEL_CACHE=/path/to/downloaded/models MEM_OFFLINE=1 pnpm eval
+pnpm pack
+```
+
+The real-model regression test skips unless `MEM_MODEL_CACHE` is set; the other tests do not download models. The evaluation is synthetic, with no private collection data. See [validation results](docs/VALIDATION.md), [architecture decisions](docs/ARCHITECTURE.md), and the [original plan and milestone status](PLAN.md).
+
+Current scope is a single user's Mac. Semantic search scans vectors in memory and is intended for small collections; large-library performance, multilingual quality, OCR, browser-assisted snapshots, device sync, fresh-install testing, Linux support, and a public package/license decision remain release work. pnpm dependency build scripts are disabled for the tested Mac prebuilt binaries; other platforms may need different installation handling.

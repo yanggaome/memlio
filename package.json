@@ -1,0 +1,33 @@
+{
+  "name": "mem-local-prototype",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local personal memory for your terminal, Codex, and Claude Code",
+  "type": "module",
+  "bin": { "mem": "dist/cli.js" },
+  "files": ["dist", "skills", "README.md", "PLAN.md", "docs"],
+  "engines": { "node": ">=22.13.0" },
+  "scripts": {
+    "build": "tsc",
+    "check": "tsc --noEmit",
+    "test": "tsc && node --test test/*.test.mjs",
+    "eval": "tsc && node scripts/evaluate.mjs",
+    "prepack": "tsc"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "3.8.1",
+    "@iarna/toml": "2.2.5",
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "@mozilla/readability": "0.6.0",
+    "commander": "14.0.3",
+    "ipaddr.js": "2.3.0",
+    "linkedom": "0.18.13",
+    "turndown": "7.2.4",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.2",
+    "@types/turndown": "5.0.6",
+    "typescript": "5.9.3"
+  }
+}

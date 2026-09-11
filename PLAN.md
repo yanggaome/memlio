@@ -2,7 +2,19 @@
 
 Draft date: September 10, 2026
 
-Status: proposal; implementation has not started. Repository and documentation research informed this plan; the candidate projects have not been installed or benchmarked for this task.
+Status: local prototype implemented. The proposal below preserves the original direction; the progress table and linked implementation notes identify changes and unfinished acceptance criteria.
+
+## Implementation progress
+
+| Milestone | Current state |
+| --- | --- |
+| Retrieval experiment | SQLite FTS5 + local MiniLM implemented and measured on 100 synthetic records / 30 queries. QMD was not benchmarked; see the [backend decision](docs/ARCHITECTURE.md). |
+| Durable core and CLI | Notes, URL text snapshots, copied files, retrieval, retries, deletion, reindex, export/import implemented. Restart and concurrent-write tests pass. |
+| Cross-agent integration | MCP server, user-scope setup, and both skills implemented. Fresh-server SDK integration tested; real Codex/Claude interactive acceptance is pending. |
+| Capture quality | Descriptions support image recall; automatic OCR/vision, PDF text extraction, and browser-assisted capture remain pending. |
+| Public release | Source and local package ready for review. Fresh install, platform CI, public naming/license, and GitHub/npm publication remain pending. |
+
+See [README.md](README.md) for implemented commands and [validation results](docs/VALIDATION.md) for measured results and limitations. The synthetic recall result does not establish the broader real-world acceptance target below.
 
 ## 1. Objective
 
@@ -14,7 +26,7 @@ The first version targets one user on one Mac. Linux compatibility should influe
 
 ## 2. Intended experience
 
-The following are proposed commands, not currently implemented commands:
+The intended interface is illustrated below. Consult README for the current exact syntax and image-description requirements:
 
 ```text
 # Claude Code skill

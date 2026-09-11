@@ -1,0 +1,74 @@
+{
+  "corpus": "100 synthetic text records (30 targets, 70 warehouse distractors); five targets describe images in text. No agent rewriting.",
+  "node": "v24.19.0",
+  "platform": "darwin",
+  "arch": "x64",
+  "model": "Xenova/all-MiniLM-L6-v2:q8:mean:normalized:v1",
+  "indexingMs": 1721.102542,
+  "peakRssBytes": 184258560,
+  "modes": {
+    "keyword": {
+      "queries": 30,
+      "top1": 12,
+      "top5": 16,
+      "recallAt5": 0.5333333333333333,
+      "medianMs": 0.8608080000003611,
+      "p95Ms": 1.0769199999999728,
+      "misses": [
+        "the article about making background jobs reliable",
+        "how to make better coffee",
+        "money buffer if I lose my job",
+        "fix my squeaky bike",
+        "protect family pictures if my hard drive dies",
+        "remember people I met at an event",
+        "secure my online accounts",
+        "avoid losing messages when the database update succeeds",
+        "what should I bring for a walk in the mountains during a storm",
+        "turn food waste into fertilizer",
+        "habits to help me fall asleep",
+        "how to give a talk without rushing",
+        "the plug I need for my Tokyo trip",
+        "that cozy chair surrounded by books"
+      ]
+    },
+    "semantic": {
+      "queries": 30,
+      "top1": 28,
+      "top5": 29,
+      "recallAt5": 0.9666666666666667,
+      "medianMs": 7.658504999999877,
+      "p95Ms": 11.770105000000058,
+      "misses": [
+        "fix my squeaky bike"
+      ]
+    },
+    "hybrid": {
+      "queries": 30,
+      "top1": 22,
+      "top5": 29,
+      "recallAt5": 0.9666666666666667,
+      "medianMs": 10.465740000000096,
+      "p95Ms": 15.640807000000223,
+      "misses": [
+        "fix my squeaky bike"
+      ]
+    }
+  },
+  "noMatchProbes": [
+    {
+      "query": "the invoice number from my dentist last Tuesday",
+      "candidates": 5,
+      "topSimilarity": 0.2775919849789669
+    },
+    {
+      "query": "the exact serial number of my lost passport",
+      "candidates": 5,
+      "topSimilarity": 0.28801514282795015
+    },
+    {
+      "query": "the name of my second grade teacher",
+      "candidates": 0,
+      "topSimilarity": null
+    }
+  ]
+}
