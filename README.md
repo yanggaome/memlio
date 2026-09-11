@@ -32,7 +32,7 @@ From Claude Code (`/memlio`) or Codex (`$memlio`):
 
 The first URL, path, or quoted text is what gets saved; the rest becomes your note. On `find`, the agent searches the shared collection, reads the likely matches, and answers with the original link or file plus excerpts. Weak or missing matches are reported as such.
 
-The same collection from a terminal:
+The same collection from a terminal. No setup is needed for this: the first command creates the collection and downloads the model.
 
 ```sh
 memlio store "Try weekly screenshots of competitor pricing"
