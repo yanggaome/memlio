@@ -34,6 +34,7 @@ const formatSaved = (s: Summary) =>
     ? `Already saved as ${s.id}: ${s.title}`
     : [
         `Saved ${s.id}: ${s.title}`,
+        s.image ? `  Image: ${s.image.width ?? '?'}×${s.image.height ?? '?'} PNG, ${(s.image.bytes / 1024).toFixed(0)} KB` : '',
         s.captureError ? `  Page capture failed: ${s.captureError}` : s.capture === 'pending' ? '  Page capture: pending' : '',
         s.indexError ? `  Semantic indexing failed: ${s.indexError}` : '',
       ]
@@ -94,12 +95,14 @@ program
   .description('Save a note, URL, or file')
   .argument('[input...]', 'Text, URL, or local file path')
   .option('--stdin', 'Read a note from standard input')
+  .option('--clipboard', 'Save the image on the system clipboard')
   .addOption(new Option('--kind <kind>').choices(['note', 'url', 'file']))
   .option('--title <title>')
   .option('--note <context>', 'Why you saved it')
   .option('--description <text>', 'A description of an image or asset')
   .action(async (parts, opts) => {
     let input = parts.join(' ');
+    if (opts.clipboard && (input || opts.stdin)) throw new Error('Use --clipboard on its own, without an argument or --stdin.');
     if (opts.stdin) {
       if (input) throw new Error('Use an argument or --stdin, not both.');
       const chunks: Buffer[] = [];

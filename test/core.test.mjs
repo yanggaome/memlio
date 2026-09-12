@@ -3,13 +3,11 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, readFileSync, rmSync, existsSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { promisify } from 'node:util';
-import { execFile } from 'node:child_process';
 import { Memory } from '../dist/store.js';
+import { exec, PNG_1X1, REAL_CLIPBOARD, putPngOnClipboard, offline as offlineEnv } from './helpers.mjs';
 import { loadConfig } from '../dist/config.js';
 import { extractPage, isPublicAddress, publicTarget } from '../dist/capture.js';
 
-const exec = promisify(execFile);
 const cli = resolve('dist/cli.js');
 function fixture(t) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'memlio-test-')));
@@ -46,13 +44,12 @@ const failingEmbedder = () => ({
   },
   dispose: async () => {},
 });
-function memoryOf(t, home, embedder = fakeEmbedder()) {
-  const memory = new Memory(home, embedder);
+function memoryOf(t, home, embedder = fakeEmbedder(), clipboard = undefined) {
+  const memory = new Memory(home, embedder, clipboard);
   t.after(() => memory.close());
   return memory;
 }
-// CLI subprocesses run offline with an empty model cache: embedding fails fast and keyword search takes over.
-const offline = (root) => ({ env: { ...process.env, MEMLIO_OFFLINE: '1', MEMLIO_MODEL_CACHE: join(root, 'no-models') } });
+const offline = (root) => ({ env: offlineEnv(root) });
 async function run(root, home, ...args) {
   const { stdout } = await exec(process.execPath, [cli, '--home', home, '--json', ...args], offline(root));
   return JSON.parse(stdout);
@@ -143,6 +140,8 @@ test('file originals survive source deletion; MCP access is restricted to allowe
   await assert.rejects(memory.store({ input: path }), /outside the folders/);
   await assert.rejects(memory.store({ input: join(root, 'missing.png') }, { explicit: true }), /File not found/);
   const saved = await memory.store({ input: path, description: 'Dark dashboard with orange charts' }, { roots: [root] });
+  // A .png saved by path reports the same image summary as a clipboard paste; this fixture has no real header.
+  assert.deepEqual(saved.image, { width: null, height: null, bytes: 7, mediaType: 'image/png' });
   const original = readFileSync(path);
   rmSync(path);
   assert.deepEqual(readFileSync(join(memory.home, 'assets', saved.item.asset)), original);
@@ -310,4 +309,68 @@ test('type and date filters scope retrieval', async (t) => {
   await memory.store({ input: 'https://example.com/coffee', note: 'coffee', defer: true });
   assert.equal((await memory.search('coffee', { kind: 'url' })).results.length, 1);
   assert.equal((await memory.search('coffee', { before: '2000-01-01' })).results.length, 0);
+});
+
+test('clipboard images are stored as PNG files with dimensions, a default title, and dedupe', async (t) => {
+  const root = fixture(t);
+  let reads = 0;
+  const memory = memoryOf(t, join(root, 'collection'), fakeEmbedder(), async () => {
+    reads++;
+    return PNG_1X1;
+  });
+  const saved = await memory.store({ input: '', clipboard: true, description: 'Dark dashboard with orange charts' });
+  assert.equal(saved.duplicate, false);
+  assert.equal(saved.item.kind, 'file');
+  assert.match(saved.item.title, /^Pasted image \d{4}-\d{2}-\d{2} \d{2}:\d{2}$/);
+  assert.match(saved.item.asset, /\.png$/);
+  assert.deepEqual(readFileSync(join(memory.home, 'assets', saved.item.asset)), PNG_1X1);
+  assert.deepEqual(saved.image, { width: 1, height: 1, bytes: PNG_1X1.length, mediaType: 'image/png' });
+  assert.equal((await memory.search('orange charts')).results[0].id, saved.item.id);
+  const again = await memory.store({ input: '', clipboard: true, description: 'Dark dashboard with orange charts' });
+  assert.equal(again.duplicate, true);
+  assert.equal(again.item.id, saved.item.id);
+  assert.equal(reads, 2);
+  await assert.rejects(memory.store({ input: 'text too', clipboard: true }), /not both/);
+  await assert.rejects(memory.store({ input: '', clipboard: true, kind: 'note' }), /always saved as files/);
+  await assert.rejects(memory.store({ input: '' }), /non-empty/);
+  const stamp = new Date(saved.item.created);
+  assert.ok(
+    saved.item.title.endsWith(`${String(stamp.getHours()).padStart(2, '0')}:${String(stamp.getMinutes()).padStart(2, '0')}`),
+  );
+});
+
+test('an empty clipboard leaves nothing behind and a literal "clipboard" note still saves', async (t) => {
+  const root = fixture(t);
+  const memory = memoryOf(t, join(root, 'collection'), fakeEmbedder(), async () => {
+    throw new Error('The clipboard does not hold an image.');
+  });
+  await assert.rejects(memory.store({ input: '', clipboard: true }), /does not hold an image/);
+  assert.equal(memory.status().count, 0);
+  const note = await memory.store({ input: 'clipboard' });
+  assert.equal(note.item.kind, 'note');
+  assert.equal(note.item.original, 'clipboard');
+});
+
+test('CLI --clipboard is exclusive with an argument and stdin', async (t) => {
+  const root = fixture(t);
+  const home = join(root, 'collection');
+  await assert.rejects(
+    exec(process.execPath, [cli, '--home', home, 'store', '--clipboard', 'note'], offline(root)),
+    /on its own/,
+  );
+  await assert.rejects(
+    exec(process.execPath, [cli, '--home', home, 'store', '--clipboard', '--stdin'], offline(root)),
+    /on its own/,
+  );
+});
+
+test('the real macOS clipboard round-trips through the CLI', REAL_CLIPBOARD, async (t) => {
+  const root = fixture(t);
+  const home = join(root, 'collection');
+  await putPngOnClipboard(root);
+  const saved = await run(root, home, 'store', '--clipboard', '--description', 'single white pixel');
+  assert.equal(saved.image.width, 1);
+  assert.equal(saved.image.height, 1);
+  const memory = memoryOf(t, home);
+  assert.deepEqual(readFileSync(join(home, 'assets', memory.get(saved.id).asset)), PNG_1X1);
 });

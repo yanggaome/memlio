@@ -5,9 +5,8 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import TOML from '@iarna/toml';
 import { setup } from '../dist/setup.js';
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { Memory } from '../dist/store.js';
+import { PNG_1X1, REAL_CLIPBOARD, putPngOnClipboard, connectMcp } from './helpers.mjs';
 
 function fixture(t) {
   const root = mkdtempSync(join(tmpdir(), 'memlio-integration-'));
@@ -57,20 +56,7 @@ test('setup refuses to replace an unrelated existing memlio server', (t) => {
 test('real MCP SDK client stores, searches and reads across fresh servers', async (t) => {
   const root = fixture(t);
   const home = join(root, 'collection');
-  const env = { ...process.env, MEMLIO_OFFLINE: '1', MEMLIO_MODEL_CACHE: join(root, 'no-models') };
-  async function connect() {
-    const client = new Client({ name: 'memlio-test', version: '1.0' });
-    await client.connect(
-      new StdioClientTransport({
-        command: process.execPath,
-        args: [resolve('dist/cli.js'), '--home', home, 'mcp'],
-        env,
-        stderr: 'pipe',
-      }),
-    );
-    return client;
-  }
-  const first = await connect();
+  const first = await connectMcp(root, home);
   let id;
   try {
     const tools = await first.listTools();
@@ -90,7 +76,7 @@ test('real MCP SDK client stores, searches and reads across fresh servers', asyn
   } finally {
     await first.close();
   }
-  const second = await connect();
+  const second = await connectMcp(root, home);
   try {
     const response = await second.callTool({ name: 'memlio_search', arguments: { query: 'packing' } });
     const found = JSON.parse(response.content[0].text);
@@ -101,10 +87,50 @@ test('real MCP SDK client stores, searches and reads across fresh servers', asyn
     assert.equal(JSON.parse(read.content[0].text).nextOffset, 10);
     const bad = await second.callTool({ name: 'memlio_store', arguments: { input: '/etc/hosts', kind: 'file' } });
     assert.equal(bad.isError, true);
+    const store = (await second.listTools()).tools.find((x) => x.name === 'memlio_store');
+    assert.equal(store.inputSchema.properties.clipboard.type, 'boolean');
+    assert.ok(!store.inputSchema.required?.includes('input'));
+    const empty = await second.callTool({ name: 'memlio_store', arguments: {} });
+    assert.equal(empty.isError, true);
+    assert.match(JSON.parse(empty.content[0].text).error, /non-empty/);
   } finally {
     await second.close();
   }
   const memory = new Memory(home);
   assert.equal(memory.status().count, 1);
   await memory.close();
+});
+
+test('MCP clipboard store echoes the saved image', REAL_CLIPBOARD, async (t) => {
+  const root = fixture(t);
+  const home = join(root, 'collection');
+  const png = PNG_1X1;
+  await putPngOnClipboard(root);
+  const client = await connectMcp(root, home);
+  try {
+    const response = await client.callTool({
+      name: 'memlio_store',
+      arguments: { clipboard: true, description: 'single white pixel', note: 'clipboard test' },
+    });
+    assert.ok(!response.isError, JSON.stringify(response.content));
+    const summary = JSON.parse(response.content[0].text);
+    assert.deepEqual(summary.image, { width: 1, height: 1, bytes: png.length, mediaType: 'image/png' });
+    assert.equal(summary.echoed, true);
+    assert.equal(response.content[1].type, 'image');
+    assert.equal(response.content[1].mimeType, 'image/png');
+    assert.deepEqual(Buffer.from(response.content[1].data, 'base64'), png);
+    // A duplicate paste is not echoed again; the summary still identifies the image.
+    const again = await client.callTool({
+      name: 'memlio_store',
+      arguments: { clipboard: true, description: 'single white pixel', note: 'clipboard test' },
+    });
+    const repeat = JSON.parse(again.content[0].text);
+    assert.equal(repeat.duplicate, true);
+    assert.equal(repeat.echoed, false);
+    assert.equal(again.content.length, 1);
+    const read = await client.callTool({ name: 'memlio_get', arguments: { id: summary.id } });
+    assert.equal(JSON.parse(read.content[0].text).original, undefined);
+  } finally {
+    await client.close();
+  }
 });

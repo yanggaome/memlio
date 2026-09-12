@@ -46,6 +46,7 @@ memlio status
 - **Bookmarks** are fetched once for a readable text snapshot. Login-only, JavaScript-only, and bot-protected pages cannot be captured; the bookmark is still saved and your note stays searchable.
 - **Files** are copied, so deleting the original does not lose the memory. Text is extracted from `.txt`, `.md`, `.csv`, and `.json`. Images and PDFs rely on the description you give them; there is no OCR.
 - **Saving files from the agent** needs permission: `memlio setup claude --allow-path ~/Screenshots`. The terminal command can save any file you name.
+- **Pasted screenshots** are saved from the system clipboard. Paste the image into the prompt and send `/memlio` with an optional reason; the agent describes what it sees so you can find it later. From a terminal, copy a screenshot (Cmd+Ctrl+Shift+4 on macOS) and run `memlio store --clipboard --description "..."`. Linux needs `wl-paste` or `xclip`.
 - **Saving the same thing twice** with the same note returns the existing item. A different note creates a second item.
 - **Search** combines keyword and semantic matching. If the model is missing, search still works on keywords and says so.
 - **Data** lives in `~/.local/share/memlio`. Back it up with `memlio export <new-dir>` and restore with `memlio import <dir>`. `memlio repair` retries failed captures and rebuilds the search index.

@@ -5,6 +5,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { loadConfig, atomicWrite } from './config.js';
 import { fetchPage, extractPage } from './capture.js';
 import { type Embedder, LocalEmbedder, cosine } from './embedding.js';
+import { type ClipboardReader, readClipboardImage, pngDimensions } from './clipboard.js';
 import { z } from 'zod';
 
 export type Kind = 'note' | 'url' | 'file';
@@ -37,6 +38,14 @@ export interface StoreInput {
   source?: string;
   /** Save only; skip page capture and embedding until the next repair. Used by the evaluation script. */
   defer?: boolean;
+  /** Save the image on the system clipboard as a PNG file. `input` must then be empty. */
+  clipboard?: boolean;
+}
+export interface ImageInfo {
+  width: number | null;
+  height: number | null;
+  bytes: number;
+  mediaType: 'image/png';
 }
 export interface SearchOptions {
   limit?: number;
@@ -72,6 +81,15 @@ const CHUNK_STEP = 750;
 const CONTEXT_LIMIT = 300;
 const FILE_LIMIT = 20 * 1024 * 1024;
 const TEXT_EXTENSIONS = ['.txt', '.md', '.csv', '.json'];
+const LIMIT_MESSAGE = 'Files and images are limited to 20 MB.';
+
+/** Bytes to keep as an asset, with where they came from and a default title. */
+interface AssetSource {
+  bytes: Buffer;
+  extension: string;
+  original: string;
+  title: string;
+}
 
 export function terms(text: string): string[] {
   const words = text.toLowerCase().match(/[\p{L}\p{N}_]+/gu) ?? [];
@@ -88,6 +106,11 @@ export function chunkText(text: string): string[] {
 }
 
 const hash = (value: string | Buffer) => createHash('sha256').update(value).digest('hex');
+/** Local "YYYY-MM-DD HH:MM" without depending on ICU locale data. */
+const localStamp = (d: Date) =>
+  [d.getFullYear(), d.getMonth() + 1, d.getDate()].map((n, i) => String(n).padStart(i ? 2 : 4, '0')).join('-') +
+  ' ' +
+  [d.getHours(), d.getMinutes()].map((n) => String(n).padStart(2, '0')).join(':');
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
 export function within(path: string, root: string): boolean {
@@ -110,6 +133,7 @@ export class Memory {
   constructor(
     readonly home: string,
     embedder?: Embedder,
+    private readonly clipboard: ClipboardReader = readClipboardImage,
   ) {
     mkdirSync(home, { recursive: true, mode: 0o700 });
     mkdirSync(join(home, 'assets'), { recursive: true, mode: 0o700 });
@@ -187,52 +211,83 @@ export class Memory {
     item.indexError = null;
   }
 
-  async store(input: StoreInput, fileAccess: { explicit?: boolean; roots?: string[] } = {}) {
-    if (!input.input.trim()) throw new Error('Provide non-empty text, a URL, or a file path.');
+  /** Reads a local file the caller may access. */
+  private readFile(input: string, fileAccess: { explicit?: boolean; roots?: string[] }): AssetSource {
+    const path = resolve(input);
+    if (!existsSync(path)) throw new Error(`File not found: ${path}`);
+    const original = realpathSync(path);
+    const roots = [...this.config.allowedPaths, ...(fileAccess.roots ?? [])].filter(existsSync).map((p) => realpathSync(p));
+    if (!fileAccess.explicit && !roots.some((root) => within(original, root))) {
+      throw new Error(
+        `${original} is outside the folders memlio may read. Allow it with: memlio setup <client> --allow-path <folder>`,
+      );
+    }
+    const stat = statSync(original);
+    if (!stat.isFile()) throw new Error('Capture requires a regular file.');
+    if (stat.size > FILE_LIMIT) throw new Error(LIMIT_MESSAGE);
+    const extension = extname(original)
+      .toLowerCase()
+      .replace(/[^.a-z0-9]/g, '')
+      .slice(0, 12);
+    return { bytes: readFileSync(original), extension, original, title: basename(original) };
+  }
+
+  /** Reads the image on the system clipboard. */
+  private async readClipboard(now: Date): Promise<AssetSource> {
+    const bytes = await this.clipboard();
+    return { bytes, extension: '.png', original: `clipboard:${now.toISOString()}`, title: `Pasted image ${localStamp(now)}` };
+  }
+
+  async store(
+    input: StoreInput,
+    fileAccess: { explicit?: boolean; roots?: string[] } = {},
+  ): Promise<{ item: Item; duplicate: boolean; image?: ImageInfo }> {
+    if (input.clipboard) {
+      if (input.input.trim()) throw new Error('Use input or clipboard, not both.');
+      if (input.kind && input.kind !== 'file') throw new Error('Clipboard images are always saved as files.');
+    } else if (!input.input.trim()) throw new Error('Provide non-empty text, a URL, or a file path.');
     if (input.input.length > 1_000_000) throw new Error('Input exceeds 1 million characters.');
     if ((input.title?.length ?? 0) > 500 || (input.note?.length ?? 0) > 20_000 || (input.description?.length ?? 0) > 20_000) {
       throw new Error('Title/context exceeds its size limit.');
     }
     if ((input.source?.length ?? 0) > 1000) throw new Error('Source exceeds 1000 characters.');
     const looksLikeFile = isAbsolute(input.input) || input.input.startsWith('./') || input.input.startsWith('../');
-    const kind = input.kind ?? (/^https?:\/\//i.test(input.input) ? 'url' : looksLikeFile ? 'file' : 'note');
-    let bytes: Buffer | undefined;
-    let asset: string | null = null;
+    const kind: Kind = input.clipboard
+      ? 'file'
+      : (input.kind ?? (/^https?:\/\//i.test(input.input) ? 'url' : looksLikeFile ? 'file' : 'note'));
+    const now = new Date();
     let text = kind === 'note' ? input.input : '';
     let original = input.input;
+    let defaultTitle = original.split('\n')[0].slice(0, 100);
+    let bytes: Buffer | undefined;
+    let digest: string | undefined;
+    let asset: string | null = null;
+    let image: ImageInfo | undefined;
     if (kind === 'url') {
       if (original.length > 8192) throw new Error('URL exceeds 8192 characters.');
       const url = new URL(original);
       if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) {
         throw new Error('Use an HTTP(S) URL without credentials.');
       }
+      defaultTitle = url.hostname;
     }
     if (kind === 'file') {
-      const path = resolve(input.input);
-      if (!existsSync(path)) throw new Error(`File not found: ${path}`);
-      original = realpathSync(path);
-      const roots = [...this.config.allowedPaths, ...(fileAccess.roots ?? [])].filter(existsSync).map((p) => realpathSync(p));
-      if (!fileAccess.explicit && !roots.some((root) => within(original, root))) {
-        throw new Error(
-          `${original} is outside the folders memlio may read. Allow it with: memlio setup <client> --allow-path <folder>`,
-        );
+      // Every byte source ends up here: one limit, one hash, one asset name, one place that inspects the bytes.
+      const source = input.clipboard ? await this.readClipboard(now) : this.readFile(input.input, fileAccess);
+      if (source.bytes.length > FILE_LIMIT) throw new Error(LIMIT_MESSAGE);
+      ({ bytes, original } = source);
+      defaultTitle = source.title;
+      digest = hash(bytes);
+      asset = `${digest}${source.extension}`;
+      if (TEXT_EXTENSIONS.includes(source.extension)) text = bytes.toString('utf8').slice(0, 1_000_000);
+      if (source.extension === '.png') {
+        const size = pngDimensions(bytes);
+        image = { width: size?.width ?? null, height: size?.height ?? null, bytes: bytes.length, mediaType: 'image/png' };
       }
-      const stat = statSync(original);
-      if (!stat.isFile() || stat.size > FILE_LIMIT) throw new Error('Capture requires a regular file no larger than 20 MB.');
-      bytes = readFileSync(original);
-      if (bytes.length > FILE_LIMIT) throw new Error('File exceeds 20 MB.');
-      const extension = extname(original).toLowerCase();
-      if (TEXT_EXTENSIONS.includes(extension)) text = bytes.toString('utf8').slice(0, 1_000_000);
-      asset = `${hash(bytes)}${extension.replace(/[^.a-z0-9]/g, '').slice(0, 12)}`;
     }
-    const now = new Date().toISOString();
     const fingerprint = hash(
-      JSON.stringify([kind, bytes ? hash(bytes) : original, input.note ?? '', input.description ?? '', input.title ?? '']),
+      JSON.stringify([kind, digest ?? original, input.note ?? '', input.description ?? '', input.title ?? '']),
     );
-    const duplicate = this.db.prepare('SELECT id FROM items WHERE hash=?').get(fingerprint) as { id: string } | undefined;
-    if (duplicate) return { item: this.get(duplicate.id), duplicate: true };
-    const defaultTitle =
-      kind === 'url' ? new URL(original).hostname : kind === 'file' ? basename(original) : original.split('\n')[0].slice(0, 100);
     const item: Item = {
       id: 'm_' + randomUUID().replaceAll('-', ''),
       kind,
@@ -241,8 +296,8 @@ export class Memory {
       note: input.note ?? '',
       description: input.description ?? '',
       source: input.source ?? 'cli',
-      created: now,
-      updated: now,
+      created: now.toISOString(),
+      updated: now.toISOString(),
       text,
       asset,
       capture: kind === 'url' ? 'pending' : 'ready',
@@ -251,7 +306,7 @@ export class Memory {
       indexError: null,
       hash: fingerprint,
       finalUrl: null,
-      capturedAt: kind === 'url' ? null : now,
+      capturedAt: kind === 'url' ? null : now.toISOString(),
     };
     const saved = this.transaction(() => {
       const existing = this.db.prepare('SELECT id FROM items WHERE hash=?').get(fingerprint) as { id: string } | undefined;
@@ -262,9 +317,11 @@ export class Memory {
       this.update(item);
       return { item, duplicate: false };
     });
-    if (saved.duplicate || input.defer) return saved;
-    await this.process(item.id, Boolean(input.title));
-    return { item: this.get(item.id), duplicate: false };
+    if (!saved.duplicate && !input.defer) {
+      await this.process(item.id, Boolean(input.title));
+      saved.item = this.get(item.id);
+    }
+    return image ? { ...saved, image } : saved;
   }
 
   /** Finish one item: capture its page if needed, then embed its chunks. Failures are recorded on the item. */
@@ -584,12 +641,13 @@ export class Memory {
 }
 
 /** The short save receipt shared by the CLI and the MCP tool. */
-export function summarize(saved: { item: Item; duplicate: boolean }) {
-  const { item, duplicate } = saved;
+export function summarize(saved: { item: Item; duplicate: boolean; image?: ImageInfo }) {
+  const { item, duplicate, image } = saved;
   return {
     id: item.id,
     title: item.title,
     duplicate,
+    ...(image ? { image } : {}),
     capture: item.capture,
     captureError: item.captureError,
     indexing: item.indexing,

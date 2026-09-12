@@ -34,6 +34,8 @@ flowchart TD
 
 **Files.** Regular files up to 20 MB are copied into `assets/` under their content hash. Text is extracted from `.txt`, `.md`, `.csv`, and `.json`. Other files, including images and PDFs, rely on the description and note.
 
+**Clipboard images.** An image pasted into an agent conversation is sent to the model inline; no file exists and the model cannot pass the bytes to a tool. The server therefore reads the system clipboard itself when `memlio_store` is called with `clipboard: true` (or `memlio store --clipboard`). macOS converts the clipboard image to PNG through AppleScript, Linux uses `wl-paste` or `xclip`, Windows uses PowerShell. The bytes are stored like any file, under `assets/` by content hash with a `.png` extension, titled `Pasted image <time>` unless a title is given. The MCP result carries the image's width, height and size and, for a new item up to 3 MB, the image itself (`echoed: true`), so the agent can confirm it saved what the user pasted rather than something copied later. `memlio_get` reports no `original` for these items; the bytes live at `assetPath`.
+
 ## Chunks
 
 The searchable body (note text, extracted page text, or file text) is cut into slices of 900 characters advancing by 750, so neighbours overlap by 150. Each slice is prefixed with the title, note, description, and URL, capped at 300 characters so the prefix cannot crowd the body out of the model's 512-token window. An empty body still produces one prefix-only chunk, which is how described images and failed bookmarks are found.
