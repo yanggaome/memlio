@@ -1,5 +1,7 @@
 # Memlio
 
+<p align="center"><img src="docs/banner.svg" alt="Memlio: save a bookmark, note, or screenshot from Claude Code or Codex, then find it later from a vague description" width="100%"></p>
+
 A personal memory for Claude Code and Codex. Save a bookmark, note, or picture from inside the agent; find it later, from any project or session, by describing what you remember.
 
 Everything stays on your machine: SQLite records, copies of saved files, a keyword index, and a small local embedding model for natural-language search. No accounts, no cloud, no API keys. A `memlio` command line is included for scripting and backups.
