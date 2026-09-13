@@ -26,13 +26,22 @@ To run from a checkout instead: `pnpm install --frozen-lockfile && pnpm build`, 
 From Claude Code (`/memlio`) or Codex (`$memlio`):
 
 ```text
-/memlio store https://example.com/article why this page matters to me
-/memlio store /absolute/path/to/dashboard.png dark dashboard with orange charts
-/memlio store A thought I want to keep
+/memlio https://example.com/article why this page matters to me
+/memlio /absolute/path/to/dashboard.png dark dashboard with orange charts
+/memlio A thought I want to keep
+/memlio [paste a screenshot] competitor pricing page
 /memlio find that article about background jobs
+/memlio status
+/memlio delete m_9c21
 ```
 
-The first URL, path, or quoted text is what gets saved; the rest becomes your note. On `find`, the agent searches the shared collection, reads the likely matches, and answers with the original link or file plus excerpts. Weak or missing matches are reported as such.
+| `/memlio ...`                           | What happens                                                                                                                                         |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| a URL, path, text, or pasted screenshot | Saves it. Any remaining words become your note. `store` may be written first but is not required.                                                    |
+| `find <description>`                    | Searches the shared collection, reads the likely matches, and answers with the original plus excerpts. Weak or missing matches are reported as such. |
+| `status`                                | Reports how many items are saved and any capture or indexing failures.                                                                               |
+| `get <id>`                              | Shows one saved record.                                                                                                                              |
+| `delete <id>`                           | Removes one record and its file if nothing else uses it.                                                                                             |
 
 The same collection from a terminal. No setup is needed for this: the first command creates the collection and downloads the model.
 

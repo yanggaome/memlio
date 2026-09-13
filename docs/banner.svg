@@ -14,9 +14,43 @@
       <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#000" flood-opacity="0.35"/>
     </filter>
     <clipPath id="card"><rect width="1200" height="420" rx="24"/></clipPath>
+    <clipPath id="term"><rect x="1" y="1" width="498" height="260" rx="13"/></clipPath>
     <style>
       text { font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
       .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+
+      /* The terminal replays a 16 s session: each command is typed, its result appears, then the screen clears.
+         Without animation support the finished session shows. */
+      .session { animation: fade 16s linear infinite; }
+      .t1 { transform: translateX(382px); animation: t1 16s linear infinite; }
+      .t2 { transform: translateX(367px); animation: t2 16s linear infinite; }
+      .t3 { transform: translateX(398px); animation: t3 16s linear infinite; }
+      .cur { opacity: 0; }
+      .c1 { animation: c1 16s linear infinite; }
+      .c2 { animation: c2 16s linear infinite; }
+      .c3 { animation: c3 16s linear infinite; }
+      .p2 { animation: p2 16s linear infinite; }
+      .p3 { animation: p3 16s linear infinite; }
+      .r1 { animation: r1 16s linear infinite; }
+      .r2 { animation: r2 16s linear infinite; }
+      .r3 { animation: r3 16s linear infinite; }
+
+      @keyframes fade { 0%, 93% { opacity: 1; } 97%, 100% { opacity: 0; } }
+      @keyframes t1 { 0%, 4% { transform: translateX(0); animation-timing-function: steps(49, end); } 17%, 100% { transform: translateX(382px); } }
+      @keyframes t2 { 0%, 26% { transform: translateX(0); animation-timing-function: steps(47, end); } 38%, 100% { transform: translateX(367px); } }
+      @keyframes t3 { 0%, 46% { transform: translateX(0); animation-timing-function: steps(51, end); } 59%, 100% { transform: translateX(398px); } }
+      @keyframes c1 { 0%, 1% { opacity: 0; } 1.5%, 18% { opacity: 1; } 18.5%, 100% { opacity: 0; } }
+      @keyframes c2 { 0%, 24% { opacity: 0; } 24.5%, 39% { opacity: 1; } 39.5%, 100% { opacity: 0; } }
+      @keyframes c3 { 0%, 44% { opacity: 0; } 44.5%, 60% { opacity: 1; } 60.5%, 100% { opacity: 0; } }
+      @keyframes p2 { 0%, 24% { opacity: 0; } 24.5%, 100% { opacity: 1; } }
+      @keyframes p3 { 0%, 44% { opacity: 0; } 44.5%, 100% { opacity: 1; } }
+      @keyframes r1 { 0%, 19% { opacity: 0; } 21%, 100% { opacity: 1; } }
+      @keyframes r2 { 0%, 40% { opacity: 0; } 42%, 100% { opacity: 1; } }
+      @keyframes r3 { 0%, 61% { opacity: 0; } 63%, 100% { opacity: 1; } }
+
+      @media (prefers-reduced-motion: reduce) {
+        .session, .t1, .t2, .t3, .c1, .c2, .c3, .p2, .p3, .r1, .r2, .r3 { animation: none; }
+      }
     </style>
   </defs>
 
@@ -57,22 +91,30 @@
     <circle cx="22" cy="20" r="5" fill="#ef4444"/>
     <circle cx="40" cy="20" r="5" fill="#f59e0b"/>
     <circle cx="58" cy="20" r="5" fill="#22c55e"/>
-    <g class="mono" font-size="13">
-      <text x="24" y="58" fill="#64748b">› </text>
+    <g class="mono session" font-size="13" clip-path="url(#term)">
+      <!-- command 1: a bookmark -->
+      <text x="24" y="58" fill="#64748b">›</text>
       <text x="40" y="58" fill="#fbbf24">/memlio</text>
       <text x="104" y="58" fill="#e2e8f0">https://example.com/queues  queue project</text>
-      <text x="24" y="82" fill="#34d399">Saved m_7f3a  Background jobs done right</text>
+      <g class="t1"><rect x="36" y="44" width="470" height="20" fill="#020617"/><rect class="cur c1" x="37" y="46" width="7" height="15" fill="#fbbf24"/></g>
+      <text class="r1" x="24" y="82" fill="#34d399">Saved m_7f3a  Background jobs done right</text>
 
-      <text x="24" y="122" fill="#64748b">› </text>
+      <!-- command 2: a pasted screenshot -->
+      <text class="p2" x="24" y="122" fill="#64748b">›</text>
       <text x="40" y="122" fill="#fbbf24">/memlio</text>
       <text x="104" y="122" fill="#e2e8f0">[pasted screenshot]  competitor pricing</text>
-      <text x="24" y="146" fill="#34d399">Saved m_9c21  Pasted image 2026-09-11 14:02</text>
+      <g class="t2"><rect x="36" y="108" width="470" height="20" fill="#020617"/><rect class="cur c2" x="37" y="110" width="7" height="15" fill="#fbbf24"/></g>
+      <text class="r2" x="24" y="146" fill="#34d399">Saved m_9c21  Pasted image 2026-09-11 14:02</text>
 
-      <text x="24" y="186" fill="#64748b">› </text>
+      <!-- command 3: find it again -->
+      <text class="p3" x="24" y="186" fill="#64748b">›</text>
       <text x="40" y="186" fill="#fbbf24">/memlio find</text>
       <text x="140" y="186" fill="#e2e8f0">that dark dashboard with orange charts</text>
-      <text x="24" y="210" fill="#34d399">m_9c21  Pasted image 2026-09-11 14:02</text>
-      <text x="24" y="232" fill="#94a3b8">        semantic similarity 0.81 · assets/9c21….png</text>
+      <g class="t3"><rect x="36" y="172" width="470" height="20" fill="#020617"/><rect class="cur c3" x="37" y="174" width="7" height="15" fill="#fbbf24"/></g>
+      <g class="r3">
+        <text x="24" y="210" fill="#34d399">m_9c21  Pasted image 2026-09-11 14:02</text>
+        <text x="24" y="232" fill="#94a3b8">        semantic similarity 0.81 · assets/9c21….png</text>
+      </g>
     </g>
   </g>
 </svg>
