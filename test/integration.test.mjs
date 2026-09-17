@@ -47,6 +47,27 @@ test('Claude setup merges settings, keeps one backup, and dry-run leaves files u
   );
 });
 
+test('Copilot setup writes mcp-config.json with a local server and installs the skill under .copilot', (t) => {
+  const root = fixture(t);
+  mkdirSync(join(root, '.copilot'));
+  writeFileSync(join(root, '.copilot', 'mcp-config.json'), JSON.stringify({ mcpServers: { other: { command: 'other' } } }));
+  setup('copilot', join(root, 'collection'), { targetHome: root, dryRun: true });
+  assert.equal(JSON.parse(readFileSync(join(root, '.copilot', 'mcp-config.json'), 'utf8')).mcpServers.memlio, undefined);
+  setup('copilot', join(root, 'collection'), { targetHome: root });
+  setup('copilot', join(root, 'collection'), { targetHome: root });
+  const parsed = JSON.parse(readFileSync(join(root, '.copilot', 'mcp-config.json'), 'utf8'));
+  assert.equal(parsed.mcpServers.other.command, 'other');
+  assert.equal(parsed.mcpServers.memlio.type, 'local');
+  assert.deepEqual(parsed.mcpServers.memlio.tools, ['*']);
+  assert.equal(parsed.mcpServers.memlio.command, process.execPath);
+  assert.ok(parsed.mcpServers.memlio.args.includes('mcp'));
+  assert.ok(existsSync(join(root, '.copilot', 'mcp-config.json.memlio-backup')));
+  const installed = readFileSync(join(root, '.copilot', 'skills', 'memlio', 'SKILL.md'), 'utf8');
+  assert.ok(installed.includes('memlio-local managed skill'));
+  assert.ok(installed.includes('memlio setup copilot'));
+  assert.ok(!existsSync(join(root, '.agents')));
+});
+
 test('setup refuses to replace an unrelated existing memlio server', (t) => {
   const root = fixture(t);
   writeFileSync(join(root, '.claude.json'), JSON.stringify({ mcpServers: { memlio: { command: 'someone-else' } } }));

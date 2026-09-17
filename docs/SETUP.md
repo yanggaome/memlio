@@ -17,15 +17,15 @@ The Node bundled inside ChatGPT.app cannot load the ONNX runtime that pnpm extra
 
 ## What `setup` does
 
-`memlio setup claude` or `memlio setup codex`:
+`memlio setup claude`, `memlio setup codex`, or `memlio setup copilot`:
 
-1. Adds an MCP server entry named `memlio` to `~/.claude.json` or `~/.codex/config.toml`, keeping every other setting and leaving one backup copy next to the file.
-2. Installs the bundled skill at `~/.claude/skills/memlio/SKILL.md` or `~/.agents/skills/memlio/SKILL.md`.
+1. Adds an MCP server entry named `memlio` to `~/.claude.json`, `~/.codex/config.toml`, or `~/.copilot/mcp-config.json`, keeping every other setting and leaving one backup copy next to the file. Copilot CLI files follow `COPILOT_HOME` when it is set.
+2. Installs the bundled skill at `~/.claude/skills/memlio/SKILL.md`, `~/.agents/skills/memlio/SKILL.md`, or `~/.copilot/skills/memlio/SKILL.md`.
 3. Downloads the embedding model into the collection directory if it is not there yet. If the download fails, setup still succeeds; keyword search works, and the model is fetched on the first use with network access.
 
 Add `--dry-run` to see the paths without writing anything. Setup refuses to overwrite a `memlio` server or skill it did not create.
 
-After a restart, `claude mcp list` should show `memlio` as connected and `/memlio` appears as a skill.
+After a restart, `claude mcp list` should show `memlio` as connected and `/memlio` appears as a skill. In Copilot CLI, `copilot mcp list` and `copilot skill list` show `memlio`. Copilot also reads `~/.agents/skills`, so after `memlio setup codex` it sees the Codex copy too; when both exist, the `~/.copilot/skills` copy takes precedence and only one `memlio` skill is listed.
 
 ## Letting the agent save files
 

@@ -1,7 +1,7 @@
 {
   "name": "@yanggao7/memlio",
   "version": "0.2.0",
-  "description": "Personal memory for Claude Code and Codex: save bookmarks, notes, and files, find them later by description. Local SQLite, local embeddings, MCP server and CLI.",
+  "description": "Personal memory for Claude Code, Codex, and GitHub Copilot CLI: save bookmarks, notes, and files, find them later by description. Local SQLite, local embeddings, MCP server and CLI.",
   "license": "MIT",
   "author": "Yang Gao",
   "repository": {
@@ -14,6 +14,7 @@
     "mcp",
     "claude-code",
     "codex",
+    "copilot-cli",
     "bookmarks",
     "notes",
     "memory",

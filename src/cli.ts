@@ -54,7 +54,7 @@ const formatStatus = (s: Status) =>
 program
   .command('setup')
   .description('Register the MCP server and skill with an agent, and prepare the local model')
-  .argument('<client>', 'codex or claude')
+  .argument('<client>', 'codex, claude, or copilot')
   .option('--allow-path <directory...>', 'Let the agent save files from these folders')
   .option('--dry-run', 'Preview paths and registration without changes')
   .option('--target-home <directory>', 'Alternative user configuration root')

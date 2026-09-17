@@ -12,7 +12,7 @@ The default suite runs 22 tests and skips the real-model test unless `MEMLIO_MOD
 
 TypeScript compilation passes. No tests use a personal memory collection. A live `example.com` bookmark capture succeeded and preserved readable text after network access was available; earlier network failure retained the bookmark with an explicit error.
 
-Skill instructions were reviewed manually. The bundled Codex skill validator could not run because the available Python installations lack PyYAML. Claude's `argument-hint` is client-specific and is outside that validator's allowed frontmatter keys. Native client skill invocation has not been tested.
+Skill instructions were reviewed manually. The bundled Codex skill validator could not run because the available Python installations lack PyYAML. Claude's `argument-hint` is client-specific and is outside that validator's allowed frontmatter keys. Native skill invocation was tested in GitHub Copilot CLI 1.0.85 on macOS on 2026-09-16: `/memlio status`, a store, and a find in prompt mode each invoked the skill and the expected memlio tool. Claude Code and Codex invocation have not been tested the same way.
 
 ## Synthetic retrieval experiment
 
@@ -36,7 +36,7 @@ The corpus is small and its distractors are easy. The result supports continued 
 
 The package is assembled locally with existing dependencies. Its source checkout and packaged executable/skill paths are checked using an isolated temporary directory. This is not a fresh dependency installation: the package check reuses this checkout's installed dependencies.
 
-A separate npm bootstrap download was rejected by automatic approval review because the workspace was out of credits. It was not retried through another route. Fresh npm installation, Linux and additional Node versions, real Codex/Claude round trips, the original-code license, CI, and GitHub/npm publication remain pending.
+A separate npm bootstrap download was rejected by automatic approval review because the workspace was out of credits. It was not retried through another route. Fresh npm installation, Linux and additional Node versions, real Codex/Claude/Copilot CLI round trips, the original-code license, CI, and GitHub/npm publication remain pending.
 
 ## Memlio rename validation
 

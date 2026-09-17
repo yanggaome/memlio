@@ -11,12 +11,21 @@ const marker = '<!-- memlio-local managed skill -->';
 
 /** Register the MCP server and install the skill in one client's user-level configuration. */
 export function setup(client: string, home: string, options: { targetHome?: string; dryRun?: boolean } = {}) {
-  if (!['codex', 'claude'].includes(client)) throw new Error('Choose codex or claude.');
+  if (!['codex', 'claude', 'copilot'].includes(client)) throw new Error('Choose codex, claude, or copilot.');
   const userHome = resolve(options.targetHome ?? homedir());
   const cli = fileURLToPath(new URL('./cli.js', import.meta.url));
   const server = { command: process.execPath, args: [cli, '--home', home, 'mcp'] };
-  const configPath = client === 'codex' ? join(userHome, '.codex', 'config.toml') : join(userHome, '.claude.json');
-  const skillPath = join(userHome, client === 'codex' ? '.agents' : '.claude', 'skills', 'memlio', 'SKILL.md');
+  // Copilot CLI keeps its files under COPILOT_HOME when that is set; an explicit target home wins so tests stay hermetic.
+  const copilotHome = options.targetHome
+    ? join(userHome, '.copilot')
+    : resolve(process.env.COPILOT_HOME ?? join(userHome, '.copilot'));
+  const paths = {
+    codex: { config: join(userHome, '.codex', 'config.toml'), skills: join(userHome, '.agents', 'skills') },
+    claude: { config: join(userHome, '.claude.json'), skills: join(userHome, '.claude', 'skills') },
+    copilot: { config: join(copilotHome, 'mcp-config.json'), skills: join(copilotHome, 'skills') },
+  }[client as 'codex' | 'claude' | 'copilot'];
+  const configPath = paths.config;
+  const skillPath = join(paths.skills, 'memlio', 'SKILL.md');
   const original = existsSync(configPath) ? readFileSync(configPath, 'utf8') : '';
   let config: string;
   if (client === 'codex') {
@@ -35,10 +44,11 @@ export function setup(client: string, home: string, options: { targetHome?: stri
   } else {
     const parsed = original ? JSON.parse(original) : {};
     if (parsed.mcpServers?.memlio && !parsed.mcpServers.memlio.args?.some((a: string) => a === cli)) {
-      throw new Error('An existing Claude MCP server named memlio has different configuration. Rename it before setup.');
+      throw new Error(`An existing ${client} MCP server named memlio has different configuration. Rename it before setup.`);
     }
     parsed.mcpServers ??= {};
-    parsed.mcpServers.memlio = { type: 'stdio', ...server };
+    // Copilot CLI expects type "local" and an explicit tool allowlist; Claude Code expects type "stdio".
+    parsed.mcpServers.memlio = client === 'copilot' ? { type: 'local', ...server, tools: ['*'] } : { type: 'stdio', ...server };
     config = JSON.stringify(parsed, null, 2) + '\n';
   }
   const skill = readFileSync(fileURLToPath(new URL(`../skills/${client}/memlio/SKILL.md`, import.meta.url)), 'utf8');

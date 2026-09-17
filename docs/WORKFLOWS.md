@@ -2,7 +2,7 @@
 
 This describes the current implementation. For commands and setup see the [README](../README.md) and [SETUP](SETUP.md); for the reasoning behind the design see [ARCHITECTURE](ARCHITECTURE.md).
 
-The CLI and the MCP server call the same `Memory` class. Codex or Claude adds the reasoning around the tools; Memlio itself does not run a language model beyond the small embedding model.
+The CLI and the MCP server call the same `Memory` class. The agent (Claude Code, Codex, or Copilot CLI) adds the reasoning around the tools; Memlio itself does not run a language model beyond the small embedding model.
 
 ## Saving
 
@@ -72,7 +72,7 @@ flowchart TD
 
 ## Through an agent
 
-`/memlio find …` in Claude Code or `$memlio find …` in Codex invokes the installed skill. The skill tells the agent to call `memlio_search`, read promising candidates with `memlio_get` (8,000 characters per call, paginated with `nextOffset`), refine the query if needed, and answer with the original link or file plus excerpts. The agent decides what to inspect; the server never receives the conversation and never generates an answer.
+`/memlio find …` in Claude Code or Copilot CLI, or `$memlio find …` in Codex, invokes the installed skill. The skill tells the agent to call `memlio_search`, read promising candidates with `memlio_get` (8,000 characters per call, paginated with `nextOffset`), refine the query if needed, and answer with the original link or file plus excerpts. The agent decides what to inspect; the server never receives the conversation and never generates an answer.
 
 `/memlio store …` calls `memlio_store` with the identified item and the rest of the text as the note. Files must lie inside a folder allowed with `memlio setup <client> --allow-path` or inside a filesystem root reported by the client.
 

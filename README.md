@@ -1,8 +1,8 @@
 # Memlio
 
-<p align="center"><img src="docs/banner.svg" alt="Memlio: save a bookmark, note, or screenshot from Claude Code or Codex, then find it later from a vague description" width="100%"></p>
+<p align="center"><img src="docs/banner.svg" alt="Memlio: save a bookmark, note, or screenshot from Claude Code, Codex, or Copilot CLI, then find it later from a vague description" width="100%"></p>
 
-A personal memory for Claude Code and Codex. Save a bookmark, note, or picture from inside the agent; find it later, from any project or session, by describing what you remember.
+A personal memory for Claude Code, Codex, and GitHub Copilot CLI. Save a bookmark, note, or picture from inside the agent; find it later, from any project or session, by describing what you remember.
 
 Everything stays on your machine: SQLite records, copies of saved files, a keyword index, and a small local embedding model for natural-language search. No accounts, no cloud, no API keys. A `memlio` command line is included for scripting and backups.
 
@@ -14,7 +14,7 @@ Requires Node.js 22.13 or newer. See [docs/SETUP.md](docs/SETUP.md) if you need 
 
 ```sh
 npm install -g @yanggao7/memlio
-memlio setup claude     # and/or: memlio setup codex
+memlio setup claude     # and/or: memlio setup codex, memlio setup copilot
 ```
 
 `setup` registers the MCP server and the `/memlio` skill with the agent and downloads the 23 MB embedding model once. Restart the agent afterward.
@@ -23,7 +23,7 @@ To run from a checkout instead: `pnpm install --frozen-lockfile && pnpm build`, 
 
 ## Use
 
-From Claude Code (`/memlio`) or Codex (`$memlio`):
+From Claude Code (`/memlio`), Codex (`$memlio`), or Copilot CLI (`/memlio`):
 
 ```text
 /memlio https://example.com/article why this page matters to me
