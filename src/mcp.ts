@@ -90,7 +90,7 @@ export async function serve(home: string) {
     'memlio_search',
     {
       description:
-        'Find saved items from a natural-language description. Combines keyword and local semantic search; falls back to keyword search with a warning if the embedding model is unavailable. Returns bounded candidates with excerpts.',
+        'Find saved items from a natural-language description. Combines keyword and local semantic search; falls back to keyword search with a warning if the embedding model is unavailable. Returns bounded candidates with excerpts. May finish indexing items whose embeddings were still pending.',
       inputSchema: {
         query: z.string().min(1).max(10_000),
         limit: z.number().int().min(1).max(20).optional(),
@@ -98,7 +98,7 @@ export async function serve(home: string) {
         after: z.string().optional(),
         before: z.string().optional(),
       },
-      annotations: { readOnlyHint: true, openWorldHint: false },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
     guarded((args) => memory.search(args.query, args)),
   );
@@ -113,7 +113,7 @@ export async function serve(home: string) {
         offset: z.number().int().min(0).optional(),
         maxChars: z.number().int().min(1).max(20_000).optional(),
       },
-      annotations: { readOnlyHint: true, openWorldHint: false },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
     guarded((args) => {
       const item = memory.get(args.id);
@@ -137,7 +137,7 @@ export async function serve(home: string) {
     {
       description: 'Show collection health and up to 20 capture/indexing failures.',
       inputSchema: {},
-      annotations: { readOnlyHint: true, openWorldHint: false },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
     guarded(() => {
       const status = memory.status();
