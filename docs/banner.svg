@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 420" role="img" aria-labelledby="t d">
   <title id="t">Memlio</title>
-  <desc id="d">Save a bookmark, note, or screenshot from Claude Code or Codex, then find it later by describing what you remember.</desc>
+  <desc id="d">Save a bookmark, note, or screenshot from Claude Code, Codex, or Copilot CLI, then find it later by describing what you remember.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#0f172a"/>
@@ -65,7 +65,7 @@
     <rect x="0" y="0" width="44" height="44" rx="11" fill="url(#glow)"/>
     <path d="M12 30 V14 l6 8 6-8 v16" fill="none" stroke="#0f172a" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
     <text x="60" y="35" font-size="38" font-weight="700" fill="#f8fafc" letter-spacing="-0.5">memlio</text>
-    <text x="60" y="62" font-size="15" fill="#94a3b8">personal memory for Claude Code and Codex</text>
+    <text x="60" y="62" font-size="15" fill="#94a3b8">personal memory for Claude Code, Codex, and Copilot CLI</text>
   </g>
 
   <!-- headline -->
