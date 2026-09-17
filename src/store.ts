@@ -1,6 +1,6 @@
 import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync, readFileSync, existsSync, realpathSync, statSync, rmSync, copyFileSync, chmodSync } from 'node:fs';
-import { join, resolve, relative, isAbsolute, basename, extname } from 'node:path';
+import { join, resolve, relative, isAbsolute, basename, extname, sep } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { loadConfig, atomicWrite } from './config.js';
 import { fetchPage, extractPage } from './capture.js';
@@ -113,9 +113,12 @@ const localStamp = (d: Date) =>
   [d.getHours(), d.getMinutes()].map((n) => String(n).padStart(2, '0')).join(':');
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
-export function within(path: string, root: string): boolean {
-  const rel = relative(root, path);
-  return rel === '' || (!rel.startsWith('../') && rel !== '..' && !isAbsolute(rel));
+type PathRules = Pick<typeof import('node:path'), 'relative' | 'isAbsolute' | 'sep'>;
+
+/** True when path is root or lies inside it. Rules default to this platform; tests pass path.win32 or path.posix. */
+export function within(path: string, root: string, rules: PathRules = { relative, isAbsolute, sep }): boolean {
+  const rel = rules.relative(root, path);
+  return rel === '' || (rel !== '..' && !rel.startsWith(`..${rules.sep}`) && !rules.isAbsolute(rel));
 }
 
 function parseItem(record: string): Item {

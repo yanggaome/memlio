@@ -6,7 +6,7 @@ A personal memory for Claude Code and Codex. Save a bookmark, note, or picture f
 
 Everything stays on your machine: SQLite records, copies of saved files, a keyword index, and a small local embedding model for natural-language search. No accounts, no cloud, no API keys. A `memlio` command line is included for scripting and backups.
 
-**Status:** early release, MIT-licensed. Tested on macOS with Node 24.
+**Status:** early release, MIT-licensed. Tested on macOS with Node 24; Linux is expected to work; Windows is untested.
 
 ## Install
 

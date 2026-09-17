@@ -29,11 +29,14 @@ export function atomicWrite(path: string, data: string | Buffer): void {
       closeSync(file);
     }
     renameSync(temp, path);
-    const directory = openSync(dirname(path), 'r');
-    try {
-      fsyncSync(directory);
-    } finally {
-      closeSync(directory);
+    // Windows cannot fsync a directory handle; the rename is already durable enough there.
+    if (process.platform !== 'win32') {
+      const directory = openSync(dirname(path), 'r');
+      try {
+        fsyncSync(directory);
+      } finally {
+        closeSync(directory);
+      }
     }
   } finally {
     rmSync(temp, { force: true });

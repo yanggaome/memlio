@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, readFileSync, rmSync, existsSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
-import { Memory } from '../dist/store.js';
+import { join, resolve, win32, posix } from 'node:path';
+import { Memory, within } from '../dist/store.js';
 import { exec, PNG_1X1, REAL_CLIPBOARD, putPngOnClipboard, offline as offlineEnv } from './helpers.mjs';
 import { loadConfig } from '../dist/config.js';
 import { extractPage, isPublicAddress, publicTarget } from '../dist/capture.js';
@@ -373,4 +373,17 @@ test('the real macOS clipboard round-trips through the CLI', REAL_CLIPBOARD, asy
   assert.equal(saved.image.height, 1);
   const memory = memoryOf(t, home);
   assert.deepEqual(readFileSync(join(home, 'assets', memory.get(saved.id).asset)), PNG_1X1);
+});
+
+test('folder containment understands Windows separators and drives', () => {
+  assert.equal(within('C:\\allowed', 'C:\\allowed', win32), true);
+  assert.equal(within('C:\\allowed\\sub\\a.txt', 'C:\\allowed', win32), true);
+  assert.equal(within('C:\\other\\secret.txt', 'C:\\allowed', win32), false);
+  assert.equal(within('C:\\allowed\\..\\secret.txt', 'C:\\allowed', win32), false);
+  assert.equal(within('C:\\allowed-2\\a.txt', 'C:\\allowed', win32), false);
+  assert.equal(within('D:\\allowed\\a.txt', 'C:\\allowed', win32), false);
+  assert.equal(within('/allowed/sub/a.txt', '/allowed', posix), true);
+  assert.equal(within('/other/secret.txt', '/allowed', posix), false);
+  assert.equal(within('/allowed-2/a.txt', '/allowed', posix), false);
+  assert.equal(within('/', '/allowed', posix), false);
 });
