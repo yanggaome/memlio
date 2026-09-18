@@ -47,7 +47,7 @@ The terminal `memlio store /path/to/file` command needs no allowance; naming the
   models/          the cached embedding model
 ```
 
-Override the location with `--home <dir>` or `MEMLIO_HOME`, then re-run setup so the agents point at it. Keep it outside any source repository.
+Override the location with `--home <dir>` or `MEMLIO_HOME`. The directory is chosen when a command starts: the flag wins, then the variable, then the default above. `memlio setup` writes the directory in use into the agent's MCP registration, so the agent keeps using that collection until setup is run again. Keep it outside any source repository.
 
 ## Environment variables
 
@@ -57,14 +57,32 @@ Override the location with `--home <dir>` or `MEMLIO_HOME`, then re-run setup so
 | `MEMLIO_MODEL_CACHE` | Shared model cache directory instead of `<home>/models`.                                              |
 | `MEMLIO_OFFLINE=1`   | Never download the model and never fetch pages. Search falls back to keywords if the model is absent. |
 
-## Backup and restore
+## Backup, restore, and moving to another device
+
+Export copies the collection to a new directory. Import merges an export into a collection.
 
 ```sh
-memlio export /path/to/new-backup-directory
-memlio --home /path/to/restored import /path/to/new-backup-directory
+memlio export ~/memlio-backup
+memlio import ~/memlio-backup
 ```
 
-Export writes `records.json` and copies of the original files. Import restores them, rebuilds the keyword index, and computes embeddings if the model is available. Embeddings and the model itself are not part of the export; `memlio repair` recreates anything missing.
+Export writes `records.json` and copies of the original files under `assets/`. The destination must not exist yet and must be outside the collection. Nothing in the export depends on the machine it came from, so the directory can be copied anywhere.
+
+Import adds every record whose content is not already present, reports how many were imported and how many were duplicates, rebuilds the keyword index, and computes embeddings if the model is available. Importing the same export twice is safe. Embeddings and the model itself are not part of the export; `memlio repair` recreates anything missing.
+
+To move to another device, run `memlio export` on the old one, copy the directory across, install memlio on the new one, run `memlio import` there, then `memlio setup <client>` as usual. On a fresh machine the default collection is empty, so the import becomes the whole collection and the agent finds it with no extra flags.
+
+To restore into a separate collection instead of merging, give import a different home:
+
+```sh
+memlio --home ~/memlio-restored import ~/memlio-backup
+```
+
+The agent does not follow this automatically: its registration still points at the collection that was in use when setup last ran. Re-run setup with the same `--home` and restart the agent to switch it, and pass `--home` (or set `MEMLIO_HOME`) on terminal commands too.
+
+```sh
+memlio --home ~/memlio-restored setup claude
+```
 
 ## Common problems
 

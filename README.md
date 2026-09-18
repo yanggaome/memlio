@@ -60,7 +60,7 @@ memlio status
 - **Pasted screenshots** are saved from the system clipboard. Paste the image into the prompt and send `/memlio` with an optional reason; the agent describes what it sees so you can find it later. From a terminal, copy a screenshot (Cmd+Ctrl+Shift+4 on macOS) and run `memlio store --clipboard --description "..."`. Linux needs `wl-paste` or `xclip`.
 - **Saving the same thing twice** with the same note returns the existing item. A different note creates a second item.
 - **Search** combines keyword and semantic matching. If the model is missing, search still works on keywords and says so.
-- **Data** lives in `~/.local/share/memlio`. Back it up with `memlio export <new-dir>` and restore with `memlio import <dir>`. `memlio repair` retries failed captures and rebuilds the search index.
+- **Data** lives in `~/.local/share/memlio`. Back it up, or move it to another machine, with `memlio export <new-dir>` and `memlio import <dir>`. `memlio repair` retries failed captures and rebuilds the search index.
 
 More detail: [setup and troubleshooting](docs/SETUP.md), [how storing and search work](docs/WORKFLOWS.md), [architecture decisions](docs/ARCHITECTURE.md), [validation results](docs/VALIDATION.md), and the [original plan](PLAN.md).
 
