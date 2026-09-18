@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "Memlio",
+  "version": "0.1.0",
+  "description": "Save the current tab into your local memlio collection, where Claude Code, Codex, and Copilot CLI can find it.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwgnrY/SDb1cnZqcHKvh0IX/1qFvBnceY0ELo8rFwkkxxQ0v/4x9IIiwbwK3te914WEfTEmB+LIPFOKS8FPTyKL/+OTjNvUf45WgPAR2ulBjv9ug8+LngbaNaUQvwm18QlvG37TN78Sa6DXYMNtsjxoW1OII/A5MReeIWNsi4Uk4oQRb8Cv6PB6FKG5r7yIZYoT/QtWhP7DVT77n2Abvw5eOHYkl34uEnEWsxETl4AYWMz6Cnn2TdHsvvnkyHhSEyPHb4Rtm3NnmB4JE50jFJ5Hed9ln2bWWMAx/jf8DXKuKMhf6bih3TQJM4oXikKIv9F7/yesmqTD3Cwz0fAQLBDwIDAQAB",
+  "permissions": ["activeTab", "scripting", "nativeMessaging"],
+  "action": {
+    "default_title": "Save to memlio",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/16.png",
+      "48": "icons/48.png",
+      "128": "icons/128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/16.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Alt+Shift+M"
+      },
+      "description": "Save the current tab to memlio"
+    }
+  }
+}

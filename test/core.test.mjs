@@ -387,3 +387,74 @@ test('folder containment understands Windows separators and drives', () => {
   assert.equal(within('/allowed-2/a.txt', '/allowed', posix), false);
   assert.equal(within('/', '/allowed', posix), false);
 });
+
+test('a page captured in the browser is saved without fetching, together with its screenshot', async (t) => {
+  const memory = memoryOf(t, fixture(t));
+  const article = 'The weekly dashboard shows revenue grew after the pricing page changed. '.repeat(20);
+  const html = `<html><head><title>Weekly numbers</title></head><body><nav>Menu</nav><article><h1>Weekly numbers</h1><p>${article}</p></article></body></html>`;
+  const input = { input: 'https://app.example.com/private', kind: 'url', note: 'pricing experiment', source: 'chrome' };
+  const saved = await memory.store({ ...input, page: { html, title: 'Tab title' }, screenshot: PNG_1X1 });
+  assert.equal(saved.duplicate, false);
+  assert.equal(saved.item.capture, 'ready');
+  assert.equal(saved.item.captureError, null);
+  assert.equal(saved.item.finalUrl, 'https://app.example.com/private');
+  assert.equal(saved.item.title, 'Weekly numbers');
+  assert.match(saved.item.text, /pricing page changed/);
+  assert.doesNotMatch(saved.item.text, /Menu/);
+  assert.match(saved.item.asset, /\.png$/);
+  assert.ok(existsSync(join(memory.home, 'assets', saved.item.asset)));
+  assert.deepEqual(saved.image, { width: 1, height: 1, bytes: PNG_1X1.length, mediaType: 'image/png' });
+  assert.equal(saved.item.indexing, 'ready');
+  const found = await memory.search('pricing experiment');
+  assert.equal(found.results[0].id, saved.item.id);
+  assert.equal(found.results[0].assetPath, join(memory.home, 'assets', saved.item.asset));
+  // The snapshot is not part of an item's identity: the same URL with the same note is the same, complete item.
+  const again = await memory.store({ ...input, page: { html }, screenshot: PNG_1X1 });
+  assert.equal(again.duplicate, true);
+  assert.equal(again.enriched, false);
+  assert.equal(again.image, undefined);
+  assert.equal(again.item.id, saved.item.id);
+});
+
+test('a repeat save from the browser completes a bookmark whose capture failed, and adds a missing screenshot', async (t) => {
+  const memory = memoryOf(t, fixture(t));
+  const input = { input: 'https://app.example.com/report', kind: 'url', note: 'quarterly' };
+  const failed = await memory.store({ ...input, defer: true });
+  assert.equal(failed.item.capture, 'pending');
+  const html = `<html><head><title>Quarterly report</title></head><body><article><h1>Quarterly report</h1><p>${'Bookings rose in every region. '.repeat(20)}</p></article></body></html>`;
+  const rescued = await memory.store({ ...input, source: 'chrome', page: { html } });
+  assert.equal(rescued.duplicate, true);
+  assert.equal(rescued.enriched, true);
+  assert.equal(rescued.item.id, failed.item.id);
+  assert.equal(rescued.item.capture, 'ready');
+  assert.equal(rescued.item.title, 'Quarterly report');
+  assert.match(rescued.item.text, /Bookings rose/);
+  assert.equal(rescued.item.indexing, 'ready');
+  assert.equal(rescued.item.asset, null);
+  const shot = await memory.store({ ...input, source: 'chrome', page: { html }, screenshot: PNG_1X1 });
+  assert.equal(shot.enriched, true);
+  assert.match(shot.item.asset, /\.png$/);
+  assert.equal(shot.image.width, 1);
+  assert.ok(existsSync(join(memory.home, 'assets', shot.item.asset)));
+  assert.equal((await memory.search('bookings region')).results[0].id, failed.item.id);
+  // An empty snapshot with no visible text records a clear failure and never fetches from here.
+  const empty = await memory.store({ input: 'https://empty.example.com/', kind: 'url', page: { html: '   ' } });
+  assert.equal(empty.item.capture, 'failed');
+  assert.match(empty.item.captureError, /no page content/);
+});
+
+test('a browser page without an article keeps its visible text; snapshots are refused for notes', async (t) => {
+  const memory = memoryOf(t, fixture(t));
+  const empty = '<html><head><title>Console</title></head><body></body></html>';
+  const page = { html: empty, text: '  Deploy queue: 3 jobs waiting\n', title: 'Console' };
+  const saved = await memory.store({ input: 'https://console.example.com/', kind: 'url', page });
+  assert.equal(saved.item.capture, 'ready');
+  assert.equal(saved.item.text, 'Deploy queue: 3 jobs waiting');
+  assert.equal(saved.item.title, 'Console');
+  const failed = await memory.store({ input: 'https://blank.example.com/', kind: 'url', page: { html: empty }, defer: true });
+  assert.equal(failed.item.capture, 'failed');
+  assert.match(failed.item.captureError, /No readable article/);
+  assert.equal(failed.item.title, 'blank.example.com');
+  await assert.rejects(memory.store({ input: 'hello', kind: 'note', page }), /only accompany a URL/);
+  await assert.rejects(memory.store({ input: 'https://example.com/', kind: 'url', screenshot: Buffer.from('nope') }), /PNG/);
+});

@@ -25,6 +25,8 @@ The Node bundled inside ChatGPT.app cannot load the ONNX runtime that pnpm extra
 
 Add `--dry-run` to see the paths without writing anything. Setup refuses to overwrite a `memlio` server or skill it did not create.
 
+`memlio setup chrome` registers a native messaging host instead of an MCP server; see [Chrome extension](#chrome-extension) below.
+
 After a restart, `claude mcp list` should show `memlio` as connected and `/memlio` appears as a skill. In Copilot CLI, `copilot mcp list` and `copilot skill list` show `memlio`. Copilot also reads `~/.agents/skills`, so after `memlio setup codex` it sees the Codex copy too; when both exist, the `~/.copilot/skills` copy takes precedence and only one `memlio` skill is listed.
 
 ## Letting the agent save files
@@ -36,6 +38,31 @@ memlio setup claude --allow-path ~/Screenshots ~/Downloads
 ```
 
 The terminal `memlio store /path/to/file` command needs no allowance; naming the file is the permission. Configuration changes take effect when the agent restarts the server.
+
+## Chrome extension
+
+The extension saves the tab you are looking at, as rendered in your signed-in browser, into the same collection the agents use. It has no storage of its own: Chrome starts a small memlio program on demand and passes it the page over a pipe. This is Chrome's native messaging mechanism, and it is the only way an extension can reach a program on your machine.
+
+```sh
+memlio setup chrome
+```
+
+Setup writes two files:
+
+1. A launcher script at `<collection>/chrome-host.sh` that starts `memlio chrome-host` with the Node executable, package, and collection directory in use at setup time. Re-run setup after switching Node versions or moving the collection.
+2. A host manifest named `com.memlio.host.json` in `~/Library/Application Support/Google/Chrome/NativeMessagingHosts` (macOS) or `~/.config/google-chrome/NativeMessagingHosts` (Linux). It points at the launcher and lists the extension ID that may call it.
+
+Then load the extension:
+
+1. Open `chrome://extensions` and turn on **Developer mode** (top right).
+2. Choose **Load unpacked** and pick the `extension` folder that setup printed. From a checkout it is `extension/` in the repository; from a global install it is inside the installed package.
+3. Check the ID Chrome shows against the one setup printed. They match unless the manifest was edited. If they differ, run `memlio setup chrome --extension-id <id>`.
+
+Click the toolbar button, or press Alt+Shift+M, on any web page. The popup shows how many items the collection holds when the host is reachable. Add a note, optionally tick the screenshot box, and save. The reply names the saved ID. If the same page was already saved with the same note, for example from an agent whose fetch was blocked, the existing item is completed with the page text and screenshot instead of being duplicated. Chrome's internal pages and the Web Store cannot be captured.
+
+The extension asks for three permissions: `activeTab` (the page you invoked it on), `scripting` (to read that page's text), and `nativeMessaging` (to reach the host). It never reads other tabs and sends nothing anywhere but the local host.
+
+Windows is not supported yet; the host manifest lives in the registry there.
 
 ## Where the data lives
 
@@ -90,3 +117,6 @@ memlio --home ~/memlio-restored setup claude
 - **A bookmark shows `Page capture failed: The site blocked automated capture`**. The site uses a bot challenge; the bookmark is saved. Add a note describing the page, or paste its text as a separate note.
 - **`memlio` is not found in the terminal**. The shell's PATH must include your Node installation's global `bin` directory (`npm prefix -g`). From a source checkout, use `node /path/to/memlio/dist/cli.js` or `pnpm link --global`.
 - **The agent says the memlio tools are unavailable**. Run `memlio setup <client>` again and restart the agent.
+- **The extension popup says the host is not registered**. Run `memlio setup chrome`, then reload the extension on `chrome://extensions`.
+- **The extension popup says this extension ID is not allowed**. Chrome loaded the extension under a different ID than the manifest key implies. Run `memlio setup chrome --extension-id <id>` with the ID shown on `chrome://extensions`.
+- **The extension popup says the host exited early**. Run the launcher from a terminal to see the error: `~/.local/share/memlio/chrome-host.sh` prints it and waits for input (press Ctrl+C). The usual cause is a Node path that no longer exists; re-run `memlio setup chrome`.

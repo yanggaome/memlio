@@ -1,12 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { spawn } from 'node:child_process';
 import TOML from '@iarna/toml';
-import { setup } from '../dist/setup.js';
+import { setup, extensionIdFromKey } from '../dist/setup.js';
 import { Memory } from '../dist/store.js';
-import { PNG_1X1, REAL_CLIPBOARD, putPngOnClipboard, connectMcp } from './helpers.mjs';
+import { encode, decode } from '../dist/native.js';
+import { PNG_1X1, REAL_CLIPBOARD, putPngOnClipboard, connectMcp, offline, exec } from './helpers.mjs';
 
 function fixture(t) {
   const root = mkdtempSync(join(tmpdir(), 'memlio-integration-'));
@@ -154,4 +156,102 @@ test('MCP clipboard store echoes the saved image', REAL_CLIPBOARD, async (t) => 
   } finally {
     await client.close();
   }
+});
+
+/** Runs a native messaging host to completion and returns its decoded replies. */
+async function nativeSession(command, args, env, requests) {
+  const child = spawn(command, args, { env, stdio: ['pipe', 'pipe', 'pipe'] });
+  const out = [];
+  const err = [];
+  child.stdout.on('data', (c) => out.push(c));
+  child.stderr.on('data', (c) => err.push(c));
+  for (const request of requests) child.stdin.write(encode(request));
+  child.stdin.end();
+  const code = await new Promise((resolve) => child.on('close', resolve));
+  assert.equal(code, 0, Buffer.concat(err).toString());
+  const { messages, rest } = decode(Buffer.concat(out));
+  assert.equal(rest.length, 0);
+  return messages;
+}
+
+test('native messaging frames survive arbitrary chunk boundaries and oversized frames are refused', () => {
+  const frames = Buffer.concat([encode({ a: 1 }), encode({ b: 'two' }), encode({ c: [3] })]);
+  const all = [];
+  let rest = Buffer.alloc(0);
+  for (let cut = 0; cut < frames.length; cut += 5) {
+    const decoded = decode(Buffer.concat([rest, frames.subarray(cut, cut + 5)]));
+    all.push(...decoded.messages);
+    rest = decoded.rest;
+  }
+  assert.deepEqual(all, [{ a: 1 }, { b: 'two' }, { c: [3] }]);
+  assert.equal(rest.length, 0);
+  assert.throws(() => decode(encode({ big: 'x'.repeat(10) }), 8), /exceeds/);
+});
+
+test('the Chrome host answers framed requests in order and saves a captured page with its screenshot', async (t) => {
+  const root = fixture(t);
+  const home = join(root, 'collection');
+  const html = `<html><head><title>Reliable tasks</title></head><body><article><h1>Reliable tasks</h1><p>${'Durable execution and retries. '.repeat(30)}</p></article></body></html>`;
+  const replies = await nativeSession(process.execPath, [resolve('dist/cli.js'), '--home', home, 'chrome-host'], offline(root), [
+    { type: 'status' },
+    { type: 'nonsense' },
+    {
+      type: 'store',
+      url: 'https://example.com/tasks',
+      title: 'Tab',
+      note: 'queue project',
+      html,
+      text: 'fallback',
+      screenshot: PNG_1X1.toString('base64'),
+    },
+    { type: 'store', url: 'ftp://example.com/tasks', html },
+  ]);
+  assert.equal(replies.length, 4);
+  assert.equal(replies[0].ok, true);
+  assert.equal(replies[0].count, 0);
+  assert.equal(replies[0].home, home);
+  assert.deepEqual(replies[1], { ok: false, error: 'Invalid request.' });
+  assert.equal(replies[2].ok, true);
+  assert.equal(replies[2].capture, 'ready');
+  assert.equal(replies[2].title, 'Reliable tasks');
+  assert.equal(replies[2].image.width, 1);
+  assert.equal(replies[3].ok, false);
+  assert.match(replies[3].error, /HTTP/);
+  const { stdout } = await exec(process.execPath, [resolve('dist/cli.js'), '--home', home, '--json', 'get', replies[2].id], {
+    env: offline(root),
+  });
+  const item = JSON.parse(stdout);
+  assert.equal(item.source, 'chrome');
+  assert.equal(item.note, 'queue project');
+  assert.match(item.text, /Durable execution/);
+  assert.ok(existsSync(join(home, 'assets', item.asset)));
+});
+
+test('Chrome setup writes an executable launcher and a host manifest naming the bundled extension', async (t) => {
+  const root = fixture(t);
+  const home = join(root, 'collection');
+  const dry = setup('chrome', home, { targetHome: root, dryRun: true });
+  assert.ok(!existsSync(dry.manifestPath) && !existsSync(dry.launcherPath));
+  const result = setup('chrome', home, { targetHome: root });
+  setup('chrome', home, { targetHome: root });
+  assert.ok(result.manifestPath.startsWith(root));
+  const manifest = JSON.parse(readFileSync(result.manifestPath, 'utf8'));
+  const key = JSON.parse(readFileSync(join(result.extensionPath, 'manifest.json'), 'utf8')).key;
+  assert.match(result.extensionId, /^[a-p]{32}$/);
+  assert.equal(result.extensionId, extensionIdFromKey(key));
+  assert.equal(manifest.name, 'com.memlio.host');
+  assert.equal(manifest.type, 'stdio');
+  assert.equal(manifest.path, result.launcherPath);
+  assert.deepEqual(manifest.allowed_origins, [`chrome-extension://${result.extensionId}/`]);
+  assert.ok(statSync(result.launcherPath).mode & 0o100);
+  // Chrome runs the launcher directly; it must reach the right collection.
+  const [status] = await nativeSession(result.launcherPath, [], offline(root), [{ type: 'status' }]);
+  assert.equal(status.ok, true);
+  assert.equal(status.home, home);
+  const custom = setup('chrome', home, { targetHome: root, extensionId: 'abcdefghijklmnopabcdefghijklmnop' });
+  assert.deepEqual(JSON.parse(readFileSync(custom.manifestPath, 'utf8')).allowed_origins, [
+    'chrome-extension://abcdefghijklmnopabcdefghijklmnop/',
+  ]);
+  assert.throws(() => setup('chrome', home, { targetHome: root, extensionId: 'nope' }), /32 letters/);
+  assert.throws(() => setup('firefox', home, { targetHome: root }), /chrome/);
 });

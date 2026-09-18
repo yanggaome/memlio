@@ -2,7 +2,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync, readFileSync, existsSync, realpathSync, statSync, rmSync, copyFileSync, chmodSync } from 'node:fs';
 import { join, resolve, relative, isAbsolute, basename, extname, sep } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
-import { loadConfig, atomicWrite } from './config.js';
+import { loadConfig, atomicWrite, errorText } from './config.js';
 import { fetchPage, extractPage } from './capture.js';
 import { type Embedder, LocalEmbedder, cosine } from './embedding.js';
 import { type ClipboardReader, readClipboardImage, pngDimensions } from './clipboard.js';
@@ -40,6 +40,10 @@ export interface StoreInput {
   defer?: boolean;
   /** Save the image on the system clipboard as a PNG file. `input` must then be empty. */
   clipboard?: boolean;
+  /** A page snapshot taken in the browser, so the URL is not fetched. `text` is the plain fallback when no article is found. */
+  page?: { html: string; text?: string; title?: string };
+  /** A PNG screenshot kept as the item's asset. Only URL items take one. */
+  screenshot?: Buffer;
 }
 export interface ImageInfo {
   width: number | null;
@@ -111,8 +115,6 @@ const localStamp = (d: Date) =>
   [d.getFullYear(), d.getMonth() + 1, d.getDate()].map((n, i) => String(n).padStart(i ? 2 : 4, '0')).join('-') +
   ' ' +
   [d.getHours(), d.getMinutes()].map((n) => String(n).padStart(2, '0')).join(':');
-const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
-
 type PathRules = Pick<typeof import('node:path'), 'relative' | 'isAbsolute' | 'sep'>;
 
 /** True when path is root or lies inside it. Rules default to this platform; tests pass path.win32 or path.posix. */
@@ -244,7 +246,7 @@ export class Memory {
   async store(
     input: StoreInput,
     fileAccess: { explicit?: boolean; roots?: string[] } = {},
-  ): Promise<{ item: Item; duplicate: boolean; image?: ImageInfo }> {
+  ): Promise<{ item: Item; duplicate: boolean; enriched: boolean; image?: ImageInfo }> {
     if (input.clipboard) {
       if (input.input.trim()) throw new Error('Use input or clipboard, not both.');
       if (input.kind && input.kind !== 'file') throw new Error('Clipboard images are always saved as files.');
@@ -258,10 +260,18 @@ export class Memory {
     const kind: Kind = input.clipboard
       ? 'file'
       : (input.kind ?? (/^https?:\/\//i.test(input.input) ? 'url' : looksLikeFile ? 'file' : 'note'));
+    if ((input.page || input.screenshot) && kind !== 'url') {
+      throw new Error('A page snapshot or screenshot can only accompany a URL.');
+    }
     const now = new Date();
     let text = kind === 'note' ? input.input : '';
     let original = input.input;
     let defaultTitle = original.split('\n')[0].slice(0, 100);
+    let pageTitle: string | undefined;
+    let captureError: string | null = null;
+    let pageUsed = false;
+    const fingerprintOf = (digest: string | undefined) =>
+      hash(JSON.stringify([kind, digest ?? original, input.note ?? '', input.description ?? '', input.title ?? '']));
     let bytes: Buffer | undefined;
     let digest: string | undefined;
     let asset: string | null = null;
@@ -273,6 +283,31 @@ export class Memory {
         throw new Error('Use an HTTP(S) URL without credentials.');
       }
       defaultTitle = url.hostname;
+      // A repeat save of the same URL and context enriches the earlier item, so only extract what it still lacks.
+      const prior = this.byHash(fingerprintOf(undefined));
+      if (input.page && prior?.capture !== 'ready') {
+        if (input.page.html.length > 5_000_000 || (input.page.text?.length ?? 0) > 1_000_000) {
+          throw new Error('Page snapshot exceeds its size limit.');
+        }
+        pageUsed = true;
+        try {
+          if (!input.page.html.trim()) throw new Error('The browser sent no page content.');
+          ({ markdown: text, title: pageTitle } = extractPage(input.page.html, original));
+        } catch (e) {
+          // No article on the page: keep its visible text if the browser sent any, otherwise record the failure.
+          if (input.page.text?.trim()) text = input.page.text.trim();
+          else captureError = errorText(e);
+          pageTitle = input.page.title;
+        }
+      }
+      if (input.screenshot && !prior?.asset) {
+        if (input.screenshot.length > FILE_LIMIT) throw new Error(LIMIT_MESSAGE);
+        const size = pngDimensions(input.screenshot);
+        if (!size) throw new Error('Screenshots must be PNG images.');
+        bytes = input.screenshot;
+        asset = `${hash(bytes)}.png`;
+        image = { ...size, bytes: bytes.length, mediaType: 'image/png' };
+      }
     }
     if (kind === 'file') {
       // Every byte source ends up here: one limit, one hash, one asset name, one place that inspects the bytes.
@@ -288,13 +323,13 @@ export class Memory {
         image = { width: size?.width ?? null, height: size?.height ?? null, bytes: bytes.length, mediaType: 'image/png' };
       }
     }
-    const fingerprint = hash(
-      JSON.stringify([kind, digest ?? original, input.note ?? '', input.description ?? '', input.title ?? '']),
-    );
+    const fingerprint = fingerprintOf(digest);
+    // A page arrives captured only from the browser; other URLs are fetched afterwards by process().
+    const captured = kind !== 'url' || (pageUsed && !captureError);
     const item: Item = {
       id: 'm_' + randomUUID().replaceAll('-', ''),
       kind,
-      title: input.title || defaultTitle,
+      title: input.title || pageTitle?.trim().slice(0, 500) || defaultTitle,
       original,
       note: input.note ?? '',
       description: input.description ?? '',
@@ -303,28 +338,63 @@ export class Memory {
       updated: now.toISOString(),
       text,
       asset,
-      capture: kind === 'url' ? 'pending' : 'ready',
-      captureError: null,
+      capture: captured ? 'ready' : pageUsed ? 'failed' : 'pending',
+      captureError,
       indexing: 'pending',
       indexError: null,
       hash: fingerprint,
-      finalUrl: null,
-      capturedAt: kind === 'url' ? null : now.toISOString(),
+      finalUrl: pageUsed && captured ? original : null,
+      capturedAt: captured ? now.toISOString() : null,
+    };
+    const writeAsset = () => {
+      if (asset && bytes && !existsSync(join(this.home, 'assets', asset))) atomicWrite(join(this.home, 'assets', asset), bytes);
     };
     const saved = this.transaction(() => {
-      const existing = this.db.prepare('SELECT id FROM items WHERE hash=?').get(fingerprint) as { id: string } | undefined;
-      if (existing) return { item: this.get(existing.id), duplicate: true };
-      if (asset && bytes && !existsSync(join(this.home, 'assets', asset))) atomicWrite(join(this.home, 'assets', asset), bytes);
+      const existing = this.byHash(fingerprint);
+      if (existing) {
+        // The same thing saved again: keep the one item, but take a page snapshot or screenshot it did not have.
+        let enriched = false;
+        if (pageUsed && captured && existing.capture !== 'ready') {
+          existing.text = text;
+          if (pageTitle?.trim() && existing.title === new URL(existing.original).hostname) {
+            existing.title = pageTitle.trim().slice(0, 500);
+          }
+          existing.capture = 'ready';
+          existing.captureError = null;
+          existing.finalUrl = original;
+          existing.capturedAt = now.toISOString();
+          enriched = true;
+        }
+        if (asset && bytes && !existing.asset) {
+          writeAsset();
+          existing.asset = asset;
+          enriched = true;
+        }
+        if (enriched) {
+          this.buildChunks(existing);
+          this.update(existing);
+        }
+        return { item: existing, duplicate: true, enriched };
+      }
+      writeAsset();
       this.db.prepare('INSERT INTO items VALUES(?,?,?)').run(item.id, item.hash, JSON.stringify(item));
       this.buildChunks(item);
       this.update(item);
-      return { item, duplicate: false };
+      return { item, duplicate: false, enriched: false };
     });
-    if (!saved.duplicate && !input.defer) {
-      await this.process(item.id, Boolean(input.title));
-      saved.item = this.get(item.id);
+    if ((!saved.duplicate || saved.enriched) && !input.defer) {
+      // A browser snapshot is final: embed it, but never re-fetch the page from here.
+      if (pageUsed) await this.embedPending(saved.item.id).catch(() => {});
+      else await this.process(saved.item.id, Boolean(input.title));
+      saved.item = this.get(saved.item.id);
     }
-    return image ? { ...saved, image } : saved;
+    // Image details describe the stored screenshot only, never one the existing item already had.
+    return image && saved.item.asset === asset ? { ...saved, image } : saved;
+  }
+
+  private byHash(fingerprint: string): Item | undefined {
+    const row = this.db.prepare('SELECT record FROM items WHERE hash=?').get(fingerprint) as { record: string } | undefined;
+    return row ? parseItem(row.record) : undefined;
   }
 
   /** Finish one item: capture its page if needed, then embed its chunks. Failures are recorded on the item. */
@@ -644,12 +714,13 @@ export class Memory {
 }
 
 /** The short save receipt shared by the CLI and the MCP tool. */
-export function summarize(saved: { item: Item; duplicate: boolean; image?: ImageInfo }) {
-  const { item, duplicate, image } = saved;
+export function summarize(saved: { item: Item; duplicate: boolean; enriched?: boolean; image?: ImageInfo }) {
+  const { item, duplicate, enriched, image } = saved;
   return {
     id: item.id,
     title: item.title,
     duplicate,
+    ...(enriched ? { enriched } : {}),
     ...(image ? { image } : {}),
     capture: item.capture,
     captureError: item.captureError,

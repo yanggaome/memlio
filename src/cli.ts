@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 import { Command, Option } from 'commander';
 import { resolve } from 'node:path';
-import { VERSION, dataHome, loadConfig, saveConfig } from './config.js';
+import { VERSION, dataHome, loadConfig, saveConfig, errorText } from './config.js';
 import { Memory, summarize, type Summary } from './store.js';
 import { LocalEmbedder } from './embedding.js';
 import { setup } from './setup.js';
 import { serve } from './mcp.js';
+import { serveChrome } from './native.js';
 
 const program = new Command()
   .name('memlio')
@@ -14,7 +15,6 @@ const program = new Command()
   .option('--home <directory>', 'Collection directory (also MEMLIO_HOME)')
   .option('--json', 'Machine-readable JSON output');
 const home = () => dataHome(program.opts().home);
-const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 function emit<T>(value: T, format: (value: T) => string) {
   console.log(program.opts().json ? JSON.stringify(value, null, 2) : format(value));
@@ -31,7 +31,7 @@ async function withMemory<T>(fn: (memory: Memory) => Promise<T> | T, format: (va
 type Status = ReturnType<Memory['status']>;
 const formatSaved = (s: Summary) =>
   s.duplicate
-    ? `Already saved as ${s.id}: ${s.title}`
+    ? `Already saved as ${s.id}: ${s.title}${s.enriched ? ' (page text or screenshot added)' : ''}`
     : [
         `Saved ${s.id}: ${s.title}`,
         s.image ? `  Image: ${s.image.width ?? '?'}×${s.image.height ?? '?'} PNG, ${(s.image.bytes / 1024).toFixed(0)} KB` : '',
@@ -53,12 +53,16 @@ const formatStatus = (s: Status) =>
 
 program
   .command('setup')
-  .description('Register the MCP server and skill with an agent, and prepare the local model')
-  .argument('<client>', 'codex, claude, or copilot')
+  .description('Register memlio with an agent or with Chrome, and prepare the local model')
+  .argument('<client>', 'codex, claude, copilot, or chrome')
   .option('--allow-path <directory...>', 'Let the agent save files from these folders')
+  .option('--extension-id <id>', 'Chrome: the ID shown on chrome://extensions, if it differs from the printed one')
   .option('--dry-run', 'Preview paths and registration without changes')
   .option('--target-home <directory>', 'Alternative user configuration root')
   .action(async (client, opts) => {
+    if (client === 'chrome' && opts.allowPath)
+      throw new Error('--allow-path applies to agent setup; the extension saves pages, not files.');
+    if (client !== 'chrome' && opts.extensionId) throw new Error('--extension-id applies to Chrome setup only.');
     const registration = setup(client, home(), opts);
     const config = loadConfig(home());
     if (opts.allowPath) {
@@ -78,13 +82,27 @@ program
       }
     }
     emit({ ...registration, allowedPaths: config.allowedPaths, model }, (r) =>
-      [
-        `${r.dryRun ? 'Would register' : 'Registered'} the memlio MCP server in ${r.configPath}`,
-        `${r.dryRun ? 'Would install' : 'Installed'} the skill at ${r.skillPath}`,
-        r.allowedPaths.length ? `Agent may save files from: ${r.allowedPaths.join(', ')}` : '',
-        `Embedding model: ${r.model}`,
-        r.dryRun ? '' : `Restart ${client} to load the server. Then try: /memlio store <url or note>`,
-      ]
+      (r.client === 'chrome'
+        ? [
+            `${r.dryRun ? 'Would register' : 'Registered'} the Chrome native messaging host in ${r.manifestPath}`,
+            `${r.dryRun ? 'Would write' : 'Wrote'} the launcher ${r.launcherPath}`,
+            `Embedding model: ${r.model}`,
+            r.dryRun
+              ? ''
+              : [
+                  'Load the extension: open chrome://extensions, turn on Developer mode, choose "Load unpacked", and pick',
+                  `  ${r.extensionPath}`,
+                  `Chrome should show the ID ${r.extensionId}. If it shows another, re-run setup with --extension-id <id>.`,
+                ].join('\n'),
+          ]
+        : [
+            `${r.dryRun ? 'Would register' : 'Registered'} the memlio MCP server in ${r.configPath}`,
+            `${r.dryRun ? 'Would install' : 'Installed'} the skill at ${r.skillPath}`,
+            r.allowedPaths.length ? `Agent may save files from: ${r.allowedPaths.join(', ')}` : '',
+            `Embedding model: ${r.model}`,
+            r.dryRun ? '' : `Restart ${client} to load the server. Then try: /memlio store <url or note>`,
+          ]
+      )
         .filter(Boolean)
         .join('\n'),
     );
@@ -200,6 +218,11 @@ program
   .command('mcp', { hidden: true })
   .description('Run the MCP server over stdio')
   .action(async () => serve(home()));
+
+program
+  .command('chrome-host', { hidden: true })
+  .description('Run the Chrome native messaging host over stdio')
+  .action(async () => serveChrome(home()));
 
 program.parseAsync().catch((error) => {
   console.error(`memlio: ${errorText(error)}`);

@@ -30,7 +30,7 @@ flowchart TD
 
 **Originals first.** The record, its chunks, and the keyword index are committed before any network request or model inference. Page capture and embedding then update the record. A failure in either step is written to the record as `captureError` or `indexError`; the original is never lost.
 
-**Page capture.** HTTP(S) only, public addresses only (checked per redirect and pinned to the connection), 20-second deadline, five redirects, 5 MB. Readable text is extracted with Readability and converted to Markdown. No scripts run. Pages behind logins, JavaScript rendering, or bot challenges are saved as bookmarks with an error; your note keeps them searchable.
+**Page capture.** HTTP(S) only, public addresses only (checked per redirect and pinned to the connection), 20-second deadline, five redirects, 5 MB. Readable text is extracted with Readability and converted to Markdown. No scripts run. Pages behind logins, JavaScript rendering, or bot challenges are saved as bookmarks with an error; your note keeps them searchable. Pages saved from the Chrome extension skip the fetch: the extension sends the rendered HTML, the same Readability step extracts it, and the page's visible text is the fallback when no article is found.
 
 **Files.** Regular files up to 20 MB are copied into `assets/` under their content hash. Text is extracted from `.txt`, `.md`, `.csv`, and `.json`. Other files, including images and PDFs, rely on the description and note.
 
@@ -93,5 +93,5 @@ There is no background worker. Everything happens inside the command or MCP call
 - Search scans every vector in JavaScript. Fine for thousands of items, not for hundreds of thousands.
 - Chunking is by character count, not by sentence or token.
 - The 0.25 similarity floor is not calibrated; "no match" detection needs a realistic evaluation corpus.
-- No OCR, no PDF text extraction, no image embeddings, no browser-assisted capture.
+- No OCR, no PDF text extraction, no image embeddings. Browser capture exists only through the Chrome extension.
 - Non-UTF-8 pages are decoded as UTF-8.

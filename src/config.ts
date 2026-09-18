@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 
 export const VERSION = '0.2.0';
+export const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
 export const MODEL = 'Xenova/all-MiniLM-L6-v2';
 
 const schema = z.object({

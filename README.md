@@ -2,7 +2,7 @@
 
 <p align="center"><img src="docs/banner.svg" alt="Memlio: save a bookmark, note, or screenshot from Claude Code, Codex, or Copilot CLI, then find it later from a vague description" width="100%"></p>
 
-A personal memory for Claude Code, Codex, and GitHub Copilot CLI. Save a bookmark, note, or picture from inside the agent; find it later, from any project or session, by describing what you remember.
+A personal memory for Claude Code, Codex, and GitHub Copilot CLI. Save a bookmark, note, or picture from inside the agent, or the page you are looking at in Chrome; find it later, from any project or session, by describing what you remember.
 
 Everything stays on your machine: SQLite records, copies of saved files, a keyword index, and a small local embedding model for natural-language search. No accounts, no cloud, no API keys. A `memlio` command line is included for scripting and backups.
 
@@ -43,6 +43,8 @@ From Claude Code (`/memlio`), Codex (`$memlio`), or Copilot CLI (`/memlio`):
 | `get <id>`                              | Shows one saved record.                                                                                                                              |
 | `delete <id>`                           | Removes one record and its file if nothing else uses it.                                                                                             |
 
+From Chrome, once the extension is loaded (see below): click the toolbar button or press Alt+Shift+M, add a note, and save. The page text comes from the tab as you see it, so pages behind a login work. Tick the checkbox to keep a screenshot of the visible area as well.
+
 The same collection from a terminal. No setup is needed for this: the first command creates the collection and downloads the model.
 
 ```sh
@@ -52,13 +54,21 @@ memlio find "competitor pricing"
 memlio status
 ```
 
+## Chrome extension
+
+```sh
+memlio setup chrome
+```
+
+This registers a native messaging host so the extension can reach your collection. Then open `chrome://extensions`, turn on Developer mode, choose "Load unpacked", and pick the `extension` folder that setup prints. Everything saved from Chrome lands in the same collection the agents search. Details and troubleshooting are in [docs/SETUP.md](docs/SETUP.md#chrome-extension).
+
 ## Good to know
 
-- **Bookmarks** are fetched once for a readable text snapshot. Login-only, JavaScript-only, and bot-protected pages cannot be captured; the bookmark is still saved and your note stays searchable.
+- **Bookmarks** saved from an agent or the terminal are fetched once for a readable text snapshot. Login-only, JavaScript-only, and bot-protected pages cannot be captured that way; the bookmark is still saved and your note stays searchable. Saving from the Chrome extension uses the page as rendered in your browser instead.
 - **Files** are copied, so deleting the original does not lose the memory. Text is extracted from `.txt`, `.md`, `.csv`, and `.json`. Images and PDFs rely on the description you give them; there is no OCR.
 - **Saving files from the agent** needs permission: `memlio setup claude --allow-path ~/Screenshots`. The terminal command can save any file you name.
 - **Pasted screenshots** are saved from the system clipboard. Paste the image into the prompt and send `/memlio` with an optional reason; the agent describes what it sees so you can find it later. From a terminal, copy a screenshot (Cmd+Ctrl+Shift+4 on macOS) and run `memlio store --clipboard --description "..."`. Linux needs `wl-paste` or `xclip`.
-- **Saving the same thing twice** with the same note returns the existing item. A different note creates a second item.
+- **Saving the same thing twice** with the same note returns the existing item. A different note creates a second item. A repeat save from Chrome fills in the page text or screenshot the item was missing, which is how to complete a bookmark the server could not capture.
 - **Search** combines keyword and semantic matching. If the model is missing, search still works on keywords and says so.
 - **Data** lives in `~/.local/share/memlio`. Back it up, or move it to another machine, with `memlio export <new-dir>` and `memlio import <dir>`. `memlio repair` retries failed captures and rebuilds the search index.
 
